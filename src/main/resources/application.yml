@@ -3,7 +3,7 @@ spring:
     name: plantopolis-backend
 
   datasource:
-    url: jdbc:oracle:thin:@//localhost:1521/XE
+    url: jdbc:oracle:thin:@//localhost:1521/XEPDB1
     username: plantopolis_user
     password: Plantopolis123
     driver-class-name: oracle.jdbc.OracleDriver
@@ -27,4 +27,5 @@ jwt:
 logging:
   level:
     com.plantopolis: DEBUG
+
     
