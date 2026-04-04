@@ -1,5 +1,5 @@
 package com.plantopolis.backend.domain.port.in;
 
-public class LoginUseCase {
-    
+public interface LoginUseCase {
+    String login(String email, String password);
 }

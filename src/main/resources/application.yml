@@ -1,16 +1,14 @@
 spring:
   application:
     name: plantopolis-backend
-
   datasource:
-    url: jdbc:oracle:thin:@//localhost:1521/XEPDB1
-    username: plantopolis_user
-    password: Plantopolis123
+    url: "jdbc:oracle:thin:@//localhost:1521/XEPDB1"
+    username: "plantopolis_user"
+    password: "Plantopolis123"
     driver-class-name: oracle.jdbc.OracleDriver
-
   jpa:
     hibernate:
-      ddl-auto: create
+      ddl-auto: validate
     show-sql: true
     properties:
       hibernate:
@@ -21,11 +19,9 @@ server:
   port: 8080
 
 jwt:
-  secret: plantopolis-jwt-secret-key-2024-muy-larga-minimo-256-bits
+  secret: "plantopolisJwtSecretKey2024MuyLargaMinimo256BitsParaHMACSHA"
   expiration: 86400000
 
 logging:
   level:
     com.plantopolis: DEBUG
-
-    
