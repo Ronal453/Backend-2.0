@@ -15,6 +15,18 @@ spring:
         dialect: org.hibernate.dialect.OracleDialect
         format_sql: true
 
+  mail:
+    host: smtp.gmail.com
+    port: 587
+    username: ${MAIL_USERNAME:tu_email@gmail.com}
+    password: ${MAIL_PASSWORD:tu_app_password}
+    properties:
+      mail:
+        smtp:
+          auth: true
+          starttls:
+            enable: true     
+
 server:
   port: 8080
 

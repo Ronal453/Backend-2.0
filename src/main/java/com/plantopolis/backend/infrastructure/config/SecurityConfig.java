@@ -36,6 +36,8 @@ public class SecurityConfig {
                     "/api/productos/**"        // catálogo público
                 ).permitAll()
                 .requestMatchers("/api/carrito/**").authenticated()
+                //pedidos
+                .requestMatchers("/api/pedidos/**").authenticated()
                 // Solo ADMINISTRADOR
                 .requestMatchers("/api/admin/**").hasRole("ADMINISTRADOR")
                 // Todo lo demás requiere autenticación
