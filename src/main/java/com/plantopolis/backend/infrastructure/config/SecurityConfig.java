@@ -15,40 +15,44 @@ import org.springframework.security.web.authentication.UsernamePasswordAuthentic
 
 @Configuration
 @EnableWebSecurity
-@EnableMethodSecurity          // habilita @PreAuthorize en controladores
+@EnableMethodSecurity
 @RequiredArgsConstructor
 public class SecurityConfig {
 
     private final JwtAuthenticationFilter jwtFilter;
-    private final AuthenticationProvider authenticationProvider;
+    private final AuthenticationProvider  authenticationProvider;
+
+    // Rutas de Swagger que no requieren autenticación
+    private static final String[] SWAGGER_PATHS = {
+            "/swagger-ui.html",
+            "/swagger-ui/**",
+            "/api-docs",
+            "/api-docs/**",
+            "/v3/api-docs",
+            "/v3/api-docs/**"
+    };
 
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
         http
-            // Desactivar CSRF (API REST stateless)
             .csrf(AbstractHttpConfigurer::disable)
-
-            // Reglas de acceso
             .authorizeHttpRequests(auth -> auth
-                // Endpoints públicos
-                .requestMatchers(
-                    "/api/auth/**",
-                    "/api/productos/**"        // catálogo público
-                ).permitAll()
+                // ── Swagger — sin autenticación ───────────────────────
+                .requestMatchers(SWAGGER_PATHS).permitAll()
+                // ── Autenticación pública ─────────────────────────────
+                .requestMatchers("/api/auth/**").permitAll()
+                // ── Catálogo público ──────────────────────────────────
+                .requestMatchers("/api/productos/**").permitAll()
+                // ── Carrito y pedidos — requieren login ───────────────
                 .requestMatchers("/api/carrito/**").authenticated()
-                //pedidos
                 .requestMatchers("/api/pedidos/**").authenticated()
-                // Solo ADMINISTRADOR
+                // ── Panel admin — solo ADMINISTRADOR ─────────────────
                 .requestMatchers("/api/admin/**").hasRole("ADMINISTRADOR")
-                // Todo lo demás requiere autenticación
+                // ── Todo lo demás — requiere login ────────────────────
                 .anyRequest().authenticated()
             )
-
-            // Sin sesiones: JWT es stateless
             .sessionManagement(session ->
                 session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
-
-            // Registrar provider y filtro JWT
             .authenticationProvider(authenticationProvider)
             .addFilterBefore(jwtFilter, UsernamePasswordAuthenticationFilter.class);
 
