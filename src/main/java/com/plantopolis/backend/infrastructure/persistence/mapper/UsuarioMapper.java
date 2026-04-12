@@ -17,6 +17,7 @@ public class UsuarioMapper {
                 .contrasenaHash(entity.getContrasenaHash())
                 .telefono(entity.getTelefono())
                 .direccion(entity.getDireccion())
+                .fechaRegistro(entity.getFechaRegistro())  // ← nuevo
                 .rolNombre(entity.getRol() != null ? entity.getRol().getNombre() : null)
                 .build();
     }
@@ -31,6 +32,7 @@ public class UsuarioMapper {
                 .contrasenaHash(domain.getContrasenaHash())
                 .telefono(domain.getTelefono())
                 .direccion(domain.getDireccion())
+                .fechaRegistro(domain.getFechaRegistro())  // ← nuevo
                 .build();
     }
 }

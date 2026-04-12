@@ -65,8 +65,12 @@ public class AuthController {
     @PostMapping("/registro")
     public ResponseEntity<AuthResponse> registro(
             @Valid @RequestBody RegistroRequest request) {
-        var usuario = registrarUseCase.registrar(
-                request.nombre(), request.email(), request.password());
+             var usuario = registrarUseCase.registrar(
+                request.nombre(),
+                request.email(),
+                request.password(),
+                request.telefono(),    
+                request.direccion()); 
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(new AuthResponse(
                         null,

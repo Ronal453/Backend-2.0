@@ -2,6 +2,7 @@ package com.plantopolis.backend.domain.port.in;
 
 import com.plantopolis.backend.domain.model.Categoria;
 import com.plantopolis.backend.domain.model.Producto;
+import com.plantopolis.backend.domain.model.TipoProducto;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 
@@ -22,4 +23,6 @@ public interface ObtenerProductosUseCase {
     Producto obtenerDetalle(Long id);
 
     List<Categoria> listarCategorias();
+
+    List<TipoProducto> listarTipos();   // ← nuevo
 }

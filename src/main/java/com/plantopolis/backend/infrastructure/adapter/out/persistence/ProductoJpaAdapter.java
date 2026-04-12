@@ -2,10 +2,12 @@ package com.plantopolis.backend.infrastructure.adapter.out.persistence;
 
 import com.plantopolis.backend.domain.model.Categoria;
 import com.plantopolis.backend.domain.model.Producto;
+import com.plantopolis.backend.domain.model.TipoProducto;
 import com.plantopolis.backend.domain.port.out.ProductoRepositoryPort;
 import com.plantopolis.backend.infrastructure.persistence.mapper.ProductoMapper;
 import com.plantopolis.backend.infrastructure.persistence.repository.CategoriaJpaRepository;
 import com.plantopolis.backend.infrastructure.persistence.repository.ProductoJpaRepository;
+import com.plantopolis.backend.infrastructure.persistence.repository.TipoProductoJpaRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -19,9 +21,10 @@ import java.util.Optional;
 @RequiredArgsConstructor
 public class ProductoJpaAdapter implements ProductoRepositoryPort {
 
-    private final ProductoJpaRepository productoRepo;
-    private final CategoriaJpaRepository categoriaRepo;
-    private final ProductoMapper mapper;
+    private final ProductoJpaRepository     productoRepo;
+    private final CategoriaJpaRepository    categoriaRepo;
+    private final TipoProductoJpaRepository tipoRepo;      // ← nuevo
+    private final ProductoMapper            mapper;
 
     @Override
     public Page<Producto> buscarConFiltros(
@@ -29,7 +32,8 @@ public class ProductoJpaAdapter implements ProductoRepositoryPort {
             BigDecimal precioMin, BigDecimal precioMax, Pageable pageable) {
 
         return productoRepo
-                .buscarConFiltros(nombre, idCategoria, idTipo, precioMin, precioMax, pageable)
+                .buscarConFiltros(nombre, idCategoria, idTipo,
+                                  precioMin, precioMax, pageable)
                 .map(mapper::toDomain);
     }
 
@@ -40,9 +44,20 @@ public class ProductoJpaAdapter implements ProductoRepositoryPort {
 
     @Override
     public List<Categoria> listarCategorias() {
-        return categoriaRepo.findAll()
+        return categoriaRepo.findDistinctByNombreCategoria()
                 .stream()
                 .map(mapper::categoriaToDomain)
+                .toList();
+    }
+
+    @Override
+    public List<TipoProducto> listarTipos() {       // ← nuevo
+        return tipoRepo.findAll()
+                .stream()
+                .map(t -> TipoProducto.builder()
+                        .idTipo(t.getIdTipo())
+                        .nombreTipo(t.getNombreTipo())
+                        .build())
                 .toList();
     }
 

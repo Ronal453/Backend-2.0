@@ -1,11 +1,15 @@
 spring:
   application:
     name: plantopolis-backend
+
+  # ── Base de datos ────────────────────────────────────────
   datasource:
-    url: "jdbc:oracle:thin:@//localhost:1521/XEPDB1"
-    username: "plantopolis_user"
-    password: "Plantopolis123"
+    url: ${SPRING_DATASOURCE_URL:jdbc:oracle:thin:@//localhost:1521/XEPDB1}
+    username: ${SPRING_DATASOURCE_USERNAME:plantopolis_user}
+    password: ${SPRING_DATASOURCE_PASSWORD:Plantopolis123}
     driver-class-name: oracle.jdbc.OracleDriver
+
+  # ── JPA / Hibernate ──────────────────────────────────────
   jpa:
     hibernate:
       ddl-auto: validate
@@ -15,25 +19,43 @@ spring:
         dialect: org.hibernate.dialect.OracleDialect
         format_sql: true
 
+  # ── Email ────────────────────────────────────────────────
   mail:
     host: smtp.gmail.com
     port: 587
-    username: ${MAIL_USERNAME:tu_email@gmail.com}
-    password: ${MAIL_PASSWORD:tu_app_password}
+    username: ${SPRING_MAIL_USERNAME:test@gmail.com}
+    password: ${SPRING_MAIL_PASSWORD:}
     properties:
       mail:
         smtp:
           auth: true
           starttls:
-            enable: true     
+            enable: true
+            required: true
+        connection-timeout: 5000
+        timeout: 5000
+        write-timeout: 5000
 
+# ── Servidor ─────────────────────────────────────────────
 server:
   port: 8080
 
+# ── JWT ──────────────────────────────────────────────────
 jwt:
-  secret: "plantopolisJwtSecretKey2024MuyLargaMinimo256BitsParaHMACSHA"
+  secret: ${JWT_SECRET:plantopolisJwtSecretKey2024MuyLargaMinimo256BitsParaHMACSHA}
   expiration: 86400000
 
+# ── Swagger / OpenAPI ─────────────────────────────────────
+springdoc:
+  api-docs:
+    path: /v3/api-docs
+  swagger-ui:
+    path: /swagger-ui.html
+    operationsSorter: method
+    disable-swagger-default-url: true
+
+# ── Logs ─────────────────────────────────────────────────
 logging:
   level:
     com.plantopolis: DEBUG
+    org.springframework.mail: DEBUG

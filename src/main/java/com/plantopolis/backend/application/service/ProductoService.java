@@ -2,6 +2,7 @@ package com.plantopolis.backend.application.service;
 
 import com.plantopolis.backend.domain.model.Categoria;
 import com.plantopolis.backend.domain.model.Producto;
+import com.plantopolis.backend.domain.model.TipoProducto;
 import com.plantopolis.backend.domain.port.in.ObtenerProductosUseCase;
 import com.plantopolis.backend.domain.port.out.ProductoRepositoryPort;
 import lombok.RequiredArgsConstructor;
@@ -37,5 +38,10 @@ public class ProductoService implements ObtenerProductosUseCase {
     @Override
     public List<Categoria> listarCategorias() {
         return productoRepository.listarCategorias();
+    }
+
+    @Override
+    public List<TipoProducto> listarTipos() {       // ← nuevo
+        return productoRepository.listarTipos();
     }
 }

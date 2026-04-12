@@ -12,6 +12,8 @@ import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
+import java.time.LocalDateTime;
+
 @Service
 @RequiredArgsConstructor
 public class UsuarioService implements RegistrarUsuarioUseCase, LoginUseCase {
@@ -25,15 +27,21 @@ public class UsuarioService implements RegistrarUsuarioUseCase, LoginUseCase {
     private static final Long ROL_CLIENTE = 1L;
 
     @Override
-    public Usuario registrar(String nombre, String email, String password) {
+    public Usuario registrar(String nombre, String email, String password,
+                             String telefono, String direccion) {
+
         if (usuarioRepository.existePorEmail(email)) {
             throw new RuntimeException("El email ya está registrado: " + email);
         }
+
         Usuario nuevo = Usuario.builder()
                 .nombreCompleto(nombre)
                 .correo(email)
                 .contrasenaHash(passwordEncoder.encode(password))
                 .idRol(ROL_CLIENTE)
+                .telefono(telefono)        
+                .direccion(direccion)         
+                .fechaRegistro(LocalDateTime.now()) 
                 .build();
 
         return usuarioRepository.guardar(nuevo);

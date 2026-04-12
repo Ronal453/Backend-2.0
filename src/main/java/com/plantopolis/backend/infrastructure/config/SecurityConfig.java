@@ -22,14 +22,17 @@ public class SecurityConfig {
     private final JwtAuthenticationFilter jwtFilter;
     private final AuthenticationProvider  authenticationProvider;
 
-    // Rutas de Swagger que no requieren autenticación
+    // Todas las rutas de Swagger/OpenAPI sin autenticación
     private static final String[] SWAGGER_PATHS = {
             "/swagger-ui.html",
             "/swagger-ui/**",
+            "/swagger-ui/index.html",
+            "/v3/api-docs",
+            "/v3/api-docs/**",
+            "/v3/api-docs.yaml",
             "/api-docs",
             "/api-docs/**",
-            "/v3/api-docs",
-            "/v3/api-docs/**"
+            "/webjars/**"
     };
 
     @Bean
@@ -37,18 +40,18 @@ public class SecurityConfig {
         http
             .csrf(AbstractHttpConfigurer::disable)
             .authorizeHttpRequests(auth -> auth
-                // ── Swagger — sin autenticación ───────────────────────
+                // ── Swagger sin autenticación ─────────────────────────
                 .requestMatchers(SWAGGER_PATHS).permitAll()
-                // ── Autenticación pública ─────────────────────────────
+                // ── Auth pública ──────────────────────────────────────
                 .requestMatchers("/api/auth/**").permitAll()
                 // ── Catálogo público ──────────────────────────────────
                 .requestMatchers("/api/productos/**").permitAll()
-                // ── Carrito y pedidos — requieren login ───────────────
+                // ── Requieren login ───────────────────────────────────
                 .requestMatchers("/api/carrito/**").authenticated()
                 .requestMatchers("/api/pedidos/**").authenticated()
-                // ── Panel admin — solo ADMINISTRADOR ─────────────────
+                // ── Solo admin ────────────────────────────────────────
                 .requestMatchers("/api/admin/**").hasRole("ADMINISTRADOR")
-                // ── Todo lo demás — requiere login ────────────────────
+                // ── Todo lo demás ─────────────────────────────────────
                 .anyRequest().authenticated()
             )
             .sessionManagement(session ->
