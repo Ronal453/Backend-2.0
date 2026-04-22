@@ -8,17 +8,19 @@ import com.plantopolis.backend.domain.port.out.ProductoRepositoryPort;
 import com.plantopolis.backend.domain.port.out.UsuarioRepositoryPort;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
 @Service
 @RequiredArgsConstructor
 public class CarritoService implements GestionarCarritoUseCase {
 
-    private final CarritoRepositoryPort carritoRepository;
+    private final CarritoRepositoryPort  carritoRepository;
     private final ProductoRepositoryPort productoRepository;
-    private final UsuarioRepositoryPort usuarioRepository;
+    private final UsuarioRepositoryPort  usuarioRepository;
 
-    // ── Ver carrito ──────────────────────────────────────────
+    // ── Ver carrito ──────────────────────────────────────────────────────────
+    // Si el usuario no tiene carrito activo, lo crea vacío automáticamente
     @Override
     public Carrito verCarrito(String email) {
         var usuario = obtenerUsuario(email);
@@ -27,17 +29,19 @@ public class CarritoService implements GestionarCarritoUseCase {
                         usuario.getIdUsuario()));
     }
 
-    // ── Agregar item ─────────────────────────────────────────
+    // ── Agregar ítem ─────────────────────────────────────────────────────────
+    // Valida que el producto exista, esté activo y tenga stock suficiente.
+    // Si el producto ya está en el carrito, suma la cantidad en vez de duplicar.
     @Override
     @Transactional
     public Carrito agregarItem(String email, Long idProducto, Integer cantidad) {
 
-        // 1. Validar que el producto existe y tiene stock
+        // 1. Validar producto y stock antes de cualquier escritura
         var producto = productoRepository.buscarPorId(idProducto)
                 .orElseThrow(() -> new RuntimeException(
                         "Producto no encontrado: " + idProducto));
 
-        if (!producto.getActivo()) {
+        if (!Boolean.TRUE.equals(producto.getActivo())) {
             throw new RuntimeException("Producto no disponible");
         }
         if (producto.getStock() < cantidad) {
@@ -45,14 +49,14 @@ public class CarritoService implements GestionarCarritoUseCase {
                     "Stock insuficiente. Disponible: " + producto.getStock());
         }
 
-        // 2. Obtener o crear carrito activo
+        // 2. Obtener o crear el carrito activo del usuario
         var usuario = obtenerUsuario(email);
         var carrito = carritoRepository
                 .buscarCarritoActivo(usuario.getIdUsuario())
-                .orElseGet(() -> carritoRepository
-                        .crearCarrito(usuario.getIdUsuario()));
+                .orElseGet(() -> carritoRepository.crearCarrito(
+                        usuario.getIdUsuario()));
 
-        // 3. Si el producto ya está en el carrito → sumar cantidad
+        // 3. Si el producto ya existe en el carrito, sumar la cantidad
         var itemExistente = carritoRepository
                 .buscarItem(carrito.getIdCarrito(), idProducto);
 
@@ -60,6 +64,7 @@ public class CarritoService implements GestionarCarritoUseCase {
             var item = itemExistente.get();
             int nuevaCantidad = item.getCantidad() + cantidad;
 
+            // Revalidar stock con la cantidad acumulada
             if (producto.getStock() < nuevaCantidad) {
                 throw new RuntimeException(
                         "Stock insuficiente. Disponible: " + producto.getStock());
@@ -67,7 +72,7 @@ public class CarritoService implements GestionarCarritoUseCase {
             item.setCantidad(nuevaCantidad);
             carritoRepository.guardarItem(item);
         } else {
-            // 4. Si no existe → crear nuevo item
+            // 4. Si no existe, crear un ítem nuevo
             var nuevoItem = ItemCarrito.builder()
                     .idCarrito(carrito.getIdCarrito())
                     .idProducto(idProducto)
@@ -76,46 +81,60 @@ public class CarritoService implements GestionarCarritoUseCase {
             carritoRepository.guardarItem(nuevoItem);
         }
 
-        // 5. Devolver carrito actualizado
+        // 5. Devolver el carrito actualizado con datos frescos de BD
         return carritoRepository
                 .buscarCarritoActivo(usuario.getIdUsuario())
                 .orElseThrow();
     }
 
-    // ── Actualizar cantidad ──────────────────────────────────
+    // ── Actualizar cantidad ───────────────────────────────────────────────────
+    // Si cantidad = 0, elimina el ítem. Valida stock antes de actualizar.
+    //
+    // SIN @Transactional aquí intencionalmente: así guardarItem() y el
+    // verCarrito() posterior corren en transacciones separadas, garantizando
+    // que verCarrito() abra una sesión de Hibernate completamente nueva y
+    // lea datos frescos desde BD (sin caché de primer nivel contaminada).
     @Override
-    @Transactional
     public Carrito actualizarCantidad(String email, Long idItem, Integer cantidad) {
 
+        // Si piden cantidad 0 o negativa, se interpreta como eliminar el ítem
         if (cantidad <= 0) {
             return eliminarItem(email, idItem);
         }
 
-        var item = carritoRepository.buscarPorId(idItem)
-                .orElseThrow(() -> new RuntimeException("Item no encontrado"));
+        // Buscar el ítem directamente por su ID (no por ID de carrito)
+        var itemExistente = carritoRepository.buscarItemPorId(idItem)
+                .orElseThrow(() -> new RuntimeException(
+                        "Item no encontrado: " + idItem));
 
-        // Validar stock
+        // Validar stock disponible para la nueva cantidad
         var producto = productoRepository
-                .buscarPorId(obtenerItemPorId(idItem).getIdProducto())
-                .orElseThrow(() -> new RuntimeException("Producto no encontrado"));
+                .buscarPorId(itemExistente.getIdProducto())
+                .orElseThrow(() -> new RuntimeException(
+                        "Producto no encontrado"));
 
         if (producto.getStock() < cantidad) {
             throw new RuntimeException(
                     "Stock insuficiente. Disponible: " + producto.getStock());
         }
 
+        // Guardar el ítem con la cantidad actualizada
+        // (el adapter hace refresh para limpiar caché de Hibernate)
         var itemActualizado = ItemCarrito.builder()
                 .idItem(idItem)
-                .idCarrito(item.getIdCarrito())
-                .idProducto(obtenerItemPorId(idItem).getIdProducto())
+                .idCarrito(itemExistente.getIdCarrito())
+                .idProducto(itemExistente.getIdProducto())
                 .cantidad(cantidad)
                 .build();
 
         carritoRepository.guardarItem(itemActualizado);
+
+        // verCarrito abre su propia transacción nueva → datos frescos garantizados
         return verCarrito(email);
     }
 
-    // ── Eliminar item ────────────────────────────────────────
+    // ── Eliminar ítem ────────────────────────────────────────────────────────
+    // Elimina el ítem y devuelve el carrito actualizado
     @Override
     @Transactional
     public Carrito eliminarItem(String email, Long idItem) {
@@ -123,27 +142,21 @@ public class CarritoService implements GestionarCarritoUseCase {
         return verCarrito(email);
     }
 
-    // ── Vaciar carrito ───────────────────────────────────────
+    // ── Vaciar carrito ───────────────────────────────────────────────────────
+    // Elimina todos los ítems del carrito activo del usuario
     @Override
     @Transactional
     public void vaciarCarrito(String email) {
         var usuario = obtenerUsuario(email);
         carritoRepository.buscarCarritoActivo(usuario.getIdUsuario())
-                .ifPresent(c -> carritoRepository.vaciarCarrito(c.getIdCarrito()));
+                .ifPresent(c -> carritoRepository.vaciarCarrito(
+                        c.getIdCarrito()));
     }
 
-    // ── Helpers ──────────────────────────────────────────────
+    // ── Helper ───────────────────────────────────────────────────────────────
     private com.plantopolis.backend.domain.model.Usuario obtenerUsuario(String email) {
         return usuarioRepository.buscarPorEmail(email)
-                .orElseThrow(() -> new RuntimeException("Usuario no encontrado"));
-    }
-
-    private ItemCarrito obtenerItemPorId(Long idItem) {
-        return carritoRepository.buscarPorId(idItem)
-                .map(c -> c.getItems().stream()
-                        .filter(i -> i.getIdItem().equals(idItem))
-                        .findFirst()
-                        .orElseThrow(() -> new RuntimeException("Item no encontrado")))
-                .orElseThrow(() -> new RuntimeException("Item no encontrado"));
+                .orElseThrow(() -> new RuntimeException(
+                        "Usuario no encontrado: " + email));
     }
 }

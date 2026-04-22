@@ -15,6 +15,9 @@ public interface CarritoRepositoryPort {
     // Buscar item dentro del carrito
     Optional<ItemCarrito> buscarItem(Long idCarrito, Long idProducto);
 
+     //buscar un ítem directamente por su ID
+    Optional<ItemCarrito> buscarItemPorId(Long idItem);
+
     // Agregar o actualizar item
     ItemCarrito guardarItem(ItemCarrito item);
 
