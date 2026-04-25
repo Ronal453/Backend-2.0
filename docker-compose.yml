@@ -1,40 +1,76 @@
+name: plantopolis 
 services:
 
-  # ── BACKEND Spring Boot ──────────────────────────────────
+  # ── BASE DE DATOS ─────────────────────────────────────────
+  oracle-xe:
+    # Imagen oficial de Oracle Database 21c Express Edition
+    image: container-registry.oracle.com/database/express:21.3.0-xe
+    container_name: oracle-xe
+    ports:
+      - "1521:1521"   # Puerto principal de conexión a Oracle
+      - "5500:5500"   # Puerto del Oracle EM Express (interfaz web admin)
+    environment:
+      ORACLE_PWD: Plantopolis123        # Contraseña para SYS y SYSTEM
+      ORACLE_CHARACTERSET: AL32UTF8    # Soporte de tildes y caracteres especiales
+    volumes:
+      # Volumen persistente — los datos sobreviven si se elimina el contenedor
+      # Sin esto, toda la BD se pierde al hacer docker rm
+      - oracle_data:/opt/oracle/oradata
+    networks:
+      - plantopolis-net   # Red interna compartida con backend y frontend
+    restart: unless-stopped   # Se reinicia automáticamente si falla
+
+  # ── BACKEND Spring Boot ───────────────────────────────────
   backend:
     build:
-      context: .
-      dockerfile: Dockerfile
+      context: .              # Busca el Dockerfile en la carpeta Back/
+      dockerfile: Dockerfile  # Nombre del Dockerfile del backend
     container_name: plantopolis-backend
     ports:
-      - "8080:8080"
+      - "8080:8080"   # Expone la API REST en el puerto 8080
     environment:
-      # oracle-xe es el nombre del contenedor en la misma red
+      # URL de conexión a Oracle — usa el nombre del contenedor como host
+      # Dentro de la red Docker, "oracle-xe" resuelve la IP del contenedor
       SPRING_DATASOURCE_URL: jdbc:oracle:thin:@//oracle-xe:1521/XEPDB1
-      SPRING_DATASOURCE_USERNAME: ${DB_USERNAME}
-      SPRING_DATASOURCE_PASSWORD: ${DB_PASSWORD}
-      SPRING_MAIL_USERNAME: ${MAIL_USERNAME}
-      SPRING_MAIL_PASSWORD: ${MAIL_PASSWORD}
-      JWT_SECRET: ${JWT_SECRET}
+
+      # Las variables con ${} se leen del archivo .env en la misma carpeta
+      SPRING_DATASOURCE_USERNAME: ${DB_USERNAME}   
+      SPRING_DATASOURCE_PASSWORD: ${DB_PASSWORD}   
+      SPRING_MAIL_USERNAME: ${MAIL_USERNAME}        # Correo para notificaciones
+      SPRING_MAIL_PASSWORD: ${MAIL_PASSWORD}        # Contraseña del correo
+      JWT_SECRET: ${JWT_SECRET}                     # Clave secreta para firmar tokens JWT
+    depends_on:
+      - oracle-xe     # Espera que Oracle inicie antes de arrancar el backend
     networks:
       - plantopolis-net
     restart: unless-stopped
 
-  # ── FRONTEND React + Nginx ───────────────────────────────
+  # ── FRONTEND React + Nginx ────────────────────────────────
   frontend:
     build:
-      context: ../From
+      context: ../From    # Busca el Dockerfile en la carpeta From/
       dockerfile: Dockerfile
     container_name: plantopolis-frontend
     ports:
+      # Puerto 5173 del host → puerto 80 del contenedor (Nginx)
       - "5173:80"
     depends_on:
-      - backend
+      - backend   # Espera que el backend inicie antes de arrancar el frontend
     networks:
       - plantopolis-net
     restart: unless-stopped
 
-# ── Red personalizada (ya la creaste con docker network create) ──
+# ── VOLÚMENES ─────────────────────────────────────────────
+volumes:
+  oracle_data:
+    # Volumen gestionado por Docker — persiste los datos de Oracle
+    # Ubicación real: /var/lib/docker/volumes/oracle_data/_data
+    # Para eliminarlo manualmente: docker volume rm oracle_data
+
+# ── RED ───────────────────────────────────────────────────
 networks:
   plantopolis-net:
-    external: true    # ya existe, Docker no la crea nueva
+    driver: bridge
+    # Red bridge privada que conecta los 3 contenedores entre sí
+    # Los contenedores se comunican por nombre: "oracle-xe", "backend", "frontend"
+    # Desde fuera solo son accesibles por los puertos expuestos (1521, 8080, 5173)
