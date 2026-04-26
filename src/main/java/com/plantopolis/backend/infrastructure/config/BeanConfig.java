@@ -24,11 +24,12 @@ public class BeanConfig {
 
     @Bean
     public AuthenticationProvider authenticationProvider() {
-        DaoAuthenticationProvider provider = new DaoAuthenticationProvider();
-        provider.setUserDetailsService(userDetailsService);
-        provider.setPasswordEncoder(passwordEncoder()); // ✅ usar el bean
-        return provider;
-    }
+    // Usar constructor con UserDetailsService directamente
+    DaoAuthenticationProvider provider = 
+        new DaoAuthenticationProvider(passwordEncoder());
+    provider.setUserDetailsService(userDetailsService);
+    return provider;
+}
 
     @Bean
     public AuthenticationManager authenticationManager(

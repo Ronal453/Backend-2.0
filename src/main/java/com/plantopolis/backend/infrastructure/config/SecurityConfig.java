@@ -22,7 +22,7 @@ public class SecurityConfig {
     private final JwtAuthenticationFilter jwtFilter;
     private final AuthenticationProvider  authenticationProvider;
 
-    // Todas las rutas de Swagger/OpenAPI sin autenticación
+    // Todas las rutas de Swagger sin autenticación
     private static final String[] SWAGGER_PATHS = {
             "/swagger-ui.html",
             "/swagger-ui/**",
@@ -40,18 +40,12 @@ public class SecurityConfig {
         http
             .csrf(AbstractHttpConfigurer::disable)
             .authorizeHttpRequests(auth -> auth
-                // ── Swagger sin autenticación ─────────────────────────
                 .requestMatchers(SWAGGER_PATHS).permitAll()
-                // ── Auth pública ──────────────────────────────────────
                 .requestMatchers("/api/auth/**").permitAll()
-                // ── Catálogo público ──────────────────────────────────
                 .requestMatchers("/api/productos/**").permitAll()
-                // ── Requieren login ───────────────────────────────────
                 .requestMatchers("/api/carrito/**").authenticated()
                 .requestMatchers("/api/pedidos/**").authenticated()
-                // ── Solo admin ────────────────────────────────────────
                 .requestMatchers("/api/admin/**").hasRole("ADMINISTRADOR")
-                // ── Todo lo demás ─────────────────────────────────────
                 .anyRequest().authenticated()
             )
             .sessionManagement(session ->
