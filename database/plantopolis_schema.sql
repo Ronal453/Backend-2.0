@@ -185,8 +185,8 @@ INSERT INTO EstadoCarrito (descripcion) VALUES ('ABANDONADO');
 -- Métodos de pago
 INSERT INTO MetodoPago (nombre_metodo) VALUES ('TARJETA_CREDITO');
 INSERT INTO MetodoPago (nombre_metodo) VALUES ('TARJETA_DEBITO');
-INSERT INTO MetodoPago (nombre_metodo) VALUES ('TRANSFERENCIA');
-INSERT INTO MetodoPago (nombre_metodo) VALUES ('EFECTIVO');
+INSERT INTO MetodoPago (nombre_metodo) VALUES ('PSE');
+INSERT INTO MetodoPago (nombre_metodo) VALUES ('CONTRA_ENTREGA');
 
 -- Estados de pago
 INSERT INTO EstadoPago (descripcion_estado_pago) VALUES ('PENDIENTE');

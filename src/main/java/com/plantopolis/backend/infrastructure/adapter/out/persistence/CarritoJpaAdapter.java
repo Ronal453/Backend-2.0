@@ -16,21 +16,17 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 
 import java.time.LocalDateTime;
+import java.time.ZoneId; // ← importar ZoneId para manejar zonas horarias
 import java.util.ArrayList;
 import java.util.Optional;
 
 /**
  * Adaptador JPA para el repositorio del carrito de compras.
  *
- * FIX CRÍTICO en cambiarEstado():
- *   Antes usaba carritoRepo.save() que no garantiza flush inmediato.
- *   Hibernate podía no persistir el cambio antes del commit, dejando
- *   el carrito en estado ACTIVO aunque el checkout ya se completó.
- *   SOLUCIÓN: usar saveAndFlush() para escritura inmediata en BD.
- *
- * Ruta destino:
- *   Back/src/main/java/com/plantopolis/backend/
- *   infrastructure/adapter/out/persistence/CarritoJpaAdapter.java
+ * TIMEZONE FIX:
+ *   fechaCreacion se genera con LocalDateTime.now(ZONA_BOGOTA)
+ *   para que Oracle almacene la hora de Colombia (UTC-5)
+ *   y no la hora UTC del servidor Docker.
  */
 @Slf4j
 @Component
@@ -45,8 +41,12 @@ public class CarritoJpaAdapter implements CarritoRepositoryPort {
     @PersistenceContext
     private EntityManager entityManager;
 
-    // ID del estado ACTIVO en tabla ESTADOCARRITO
+    // ID del estado ACTIVO en la tabla ESTADOCARRITO
     private static final Long ESTADO_ACTIVO = 1L;
+
+    // Zona horaria de Colombia — UTC-5, sin horario de verano
+    // Se aplica a la fecha de creación del carrito para que quede en hora local
+    private static final ZoneId ZONA_BOGOTA = ZoneId.of("America/Bogota");
 
     /**
      * Busca el carrito activo del usuario.
@@ -60,13 +60,17 @@ public class CarritoJpaAdapter implements CarritoRepositoryPort {
 
     /**
      * Crea un carrito nuevo en estado ACTIVO para el usuario.
+     * La fecha de creación se guarda en hora de Bogotá (UTC-5).
      */
     @Override
     public Carrito crearCarrito(Long idUsuario) {
         var entity = CarritoEntity.builder()
                 .idUsuario(idUsuario)
                 .idEstadoCarrito(ESTADO_ACTIVO)
-                .fechaCreacion(LocalDateTime.now())
+                // ── FIX TIMEZONE ──────────────────────────────────────────
+                // LocalDateTime.now() usa UTC en Docker → hora incorrecta.
+                // LocalDateTime.now(ZONA_BOGOTA) garantiza hora colombiana.
+                .fechaCreacion(LocalDateTime.now(ZONA_BOGOTA))
                 .items(new ArrayList<>())
                 .build();
         return mapper.toDomain(carritoRepo.save(entity));
@@ -94,9 +98,8 @@ public class CarritoJpaAdapter implements CarritoRepositoryPort {
     /**
      * Persiste un ítem (insert o update).
      *
-     * saveAndFlush + refresh garantizan que Hibernate lea los datos
-     * frescos desde BD (incluyendo la relación @ManyToOne producto)
-     * en vez de devolver la entidad cacheada sin precio ni nombre.
+     * saveAndFlush + refresh garantizan que Hibernate lea los datos frescos
+     * desde BD (incluyendo la relación producto) en vez de la entidad cacheada.
      */
     @Override
     @Transactional
@@ -108,7 +111,7 @@ public class CarritoJpaAdapter implements CarritoRepositoryPort {
                 .cantidad(item.getCantidad())
                 .build();
 
-        // flush: escribe en BD inmediatamente
+        // flush: escribe en BD inmediatamente dentro de la transacción
         var saved = itemRepo.saveAndFlush(entity);
 
         // refresh: descarta el caché y recarga desde BD con relaciones EAGER
@@ -148,16 +151,9 @@ public class CarritoJpaAdapter implements CarritoRepositoryPort {
     /**
      * Cambia el estado del carrito (ej: ACTIVO → CONVERTIDO al hacer checkout).
      *
-     * FIX CRÍTICO: Antes usaba save() que no garantizaba flush inmediato.
-     * Hibernate podía hacer lazy-write después del commit, dejando el carrito
-     * en estado ACTIVO en BD aunque el checkout ya se completó.
-     *
-     * SOLUCIÓN: saveAndFlush() fuerza el UPDATE inmediato en BD dentro
-     * de la misma transacción, garantizando que el carrito quede CONVERTIDO
-     * antes de que el cliente reciba la respuesta del checkout.
-     *
-     * @param idCarrito ID del carrito a actualizar
-     * @param idEstado  nuevo estado (1=ACTIVO, 2=CONVERTIDO, 3=ABANDONADO)
+     * saveAndFlush() fuerza el UPDATE inmediato en BD dentro de la misma
+     * transacción, garantizando que el carrito quede CONVERTIDO antes de
+     * que el cliente reciba la respuesta del checkout.
      */
     @Override
     @Transactional
@@ -166,8 +162,6 @@ public class CarritoJpaAdapter implements CarritoRepositoryPort {
             c.setIdEstadoCarrito(idEstado);
 
             // saveAndFlush: UPDATE inmediato en BD, no espera al final del commit
-            // Esto garantiza que el carrito quede CONVERTIDO antes de que
-            // la respuesta del checkout llegue al frontend
             carritoRepo.saveAndFlush(c);
 
             log.debug("Carrito {} → estado {} (flush inmediato)", idCarrito, idEstado);

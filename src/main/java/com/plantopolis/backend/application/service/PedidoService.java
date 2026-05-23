@@ -20,20 +20,16 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.time.ZoneId; // ← importar ZoneId para manejar zonas horarias
 import java.util.List;
 
 /**
  * Servicio de aplicación que implementa ProcesarPedidoUseCase.
  *
- * SOLUCIÓN DEFINITIVA AL MÉTODO DE PAGO:
- *   En lugar de depender de las relaciones JPA (que pueden quedar null
- *   por el caché de Hibernate), enriquecerPago() carga el pago y su
- *   método DIRECTAMENTE desde PagoJpaRepository y MetodoPagoJpaRepository
- *   usando los IDs de las columnas (no las relaciones @ManyToOne).
- *   Esto es 100% confiable porque usa los valores de columna simples.
- *
- * Ruta destino:
- *   Back/src/main/java/com/plantopolis/backend/application/service/PedidoService.java
+ * TIMEZONE FIX:
+ *   Todas las fechas (fechaPedido y fechaPago) se generan con
+ *   LocalDateTime.now(ZONA_BOGOTA) para que Oracle almacene la hora
+ *   de Colombia (UTC-5) y no la hora UTC del servidor Docker.
  */
 @Slf4j
 @Service
@@ -50,30 +46,26 @@ public class PedidoService implements ProcesarPedidoUseCase {
     // ── Repositorios JPA directos ─────────────────────────────────────────────
     private final PedidoJpaRepository        pedidoJpaRepo;
     private final DetallePedidoJpaRepository detallePedidoRepo;
-    private final PagoJpaRepository          pagoJpaRepo;       // para cargar pago por idPedido
-    private final MetodoPagoJpaRepository    metodoPagoRepo;    // para cargar nombre del método
+    private final PagoJpaRepository          pagoJpaRepo;
+    private final MetodoPagoJpaRepository    metodoPagoRepo;
     private final PedidoMapper               pedidoMapper;
 
     // ── IDs de estados según datos iniciales del SQL ──────────────────────────
     private static final Long ESTADO_PEDIDO_PENDIENTE   = 1L;
     private static final Long ESTADO_CARRITO_CONVERTIDO = 2L;
     private static final Long ESTADO_PAGO_APROBADO      = 2L;
-    private static final Long ID_METODO_EFECTIVO        = 4L; // Contra entrega
+    private static final Long ID_METODO_EFECTIVO        = 4L;
+
+    // ── Zona horaria de Colombia ──────────────────────────────────────────────
+    // Colombia no usa horario de verano, siempre UTC-5
+    // Se aplica a TODAS las fechas que se persisten en Oracle
+    private static final ZoneId ZONA_BOGOTA = ZoneId.of("America/Bogota");
 
     // ─────────────────────────────────────────────────────────────────────────
     /**
      * Enriquece el pago de un pedido con nombre del método y estado.
-     *
-     * ESTRATEGIA (de más confiable a menos):
-     *   1. Cargar el PagoEntity directamente desde BD usando idPedido
-     *      (no depende de relaciones JPA, solo del valor de columna ID_PEDIDO)
-     *   2. Con el ID_METODO del PagoEntity, cargar MetodoPagoEntity directamente
-     *   3. Asignar nombreMetodo y estadoPago al dominio Pago
-     *
-     * Este método se aplica después de cargar cualquier pedido desde BD.
-     * No usa relaciones @ManyToOne ni JOIN FETCH, solo queries simples por ID.
-     *
-     * @param pedido pedido del dominio al que enriquecer el pago
+     * Carga el PagoEntity directamente desde BD usando el ID del pedido,
+     * sin depender de relaciones JPA que pueden quedar null por caché de Hibernate.
      */
     private void enriquecerPago(Pedido pedido) {
         if (pedido == null || pedido.getIdPedido() == null) return;
@@ -87,7 +79,6 @@ public class PedidoService implements ProcesarPedidoUseCase {
         }
 
         // Cargar el PagoEntity directamente por idPedido (query simple por columna)
-        // Esto es 100% confiable porque usa findByIdPedido(), no una relación JPA
         var pagoEntityOpt = pagoJpaRepo.findByIdPedido(pedido.getIdPedido());
 
         if (pagoEntityOpt.isEmpty()) {
@@ -108,8 +99,7 @@ public class PedidoService implements ProcesarPedidoUseCase {
                 .map(m -> m.getNombreMetodo())
                 .orElse("DESCONOCIDO");
 
-        // Determinar estado del pago:
-        // EFECTIVO (id=4) = Contra entrega = PENDIENTE hasta recibir físicamente
+        // EFECTIVO (id=4) = Contra entrega = pago pendiente hasta recibir físicamente
         // Todos los demás = pago electrónico = APROBADO inmediatamente
         String estadoPago = ID_METODO_EFECTIVO.equals(idMetodo)
                 ? "PENDIENTE" : "APROBADO";
@@ -117,7 +107,7 @@ public class PedidoService implements ProcesarPedidoUseCase {
         log.debug("Pago enriquecido: método={} (id={}), estado={}",
                 nombreMetodo, idMetodo, estadoPago);
 
-        // Si el dominio ya tiene un objeto Pago, actualizarlo
+        // Actualizar el dominio Pago con los datos cargados desde BD
         if (pedido.getPago() != null) {
             pedido.getPago().setNombreMetodo(nombreMetodo);
             pedido.getPago().setEstadoPagoDescripcion(estadoPago);
@@ -126,7 +116,7 @@ public class PedidoService implements ProcesarPedidoUseCase {
                 pedido.getPago().setMonto(pagoEntity.getMonto());
             }
         } else {
-            // Si el pago no se cargó desde BD, construirlo completo desde la entidad
+            // Construir el objeto Pago completo si no venía cargado
             Pago pago = Pago.builder()
                     .idPago(pagoEntity.getIdPago())
                     .idPedido(pedido.getIdPedido())
@@ -147,29 +137,30 @@ public class PedidoService implements ProcesarPedidoUseCase {
                                   Long idMetodoPago,
                                   String direccionEnvio) {
 
-        // PASO 1: Obtener usuario
+        // PASO 1: Obtener usuario autenticado por email (del token JWT)
         var usuario = usuarioRepository.buscarPorEmail(email)
                 .orElseThrow(() -> new RuntimeException(
                         "Usuario no encontrado: " + email));
 
-        // PASO 2: Obtener carrito activo
+        // PASO 2: Obtener el carrito activo del usuario
         var carrito = carritoRepository
                 .buscarCarritoActivo(usuario.getIdUsuario())
                 .orElseThrow(() -> new RuntimeException(
                         "No tienes un carrito activo"));
 
+        // Validar que el carrito tenga al menos un ítem
         if (carrito.getItems() == null || carrito.getItems().isEmpty()) {
             throw new RuntimeException("El carrito está vacío");
         }
 
-        // PASO 3: Validar método de pago y obtener nombre en memoria
+        // PASO 3: Validar método de pago y obtener su nombre
         var metodoPagoEntity = metodoPagoRepo.findById(idMetodoPago)
                 .orElseThrow(() -> new RuntimeException(
                         "Método de pago no válido: " + idMetodoPago));
         String nombreMetodoPago = metodoPagoEntity.getNombreMetodo();
         log.debug("Checkout con método: {} (id={})", nombreMetodoPago, idMetodoPago);
 
-        // PASO 4: Validar stock y construir detalles
+        // PASO 4: Validar stock de cada producto y construir la lista de detalles
         List<DetallePedidoEntity> detalleEntities = carrito.getItems()
                 .stream()
                 .map(item -> {
@@ -188,6 +179,7 @@ public class PedidoService implements ProcesarPedidoUseCase {
                                 + "'. Disponible: " + producto.getStock());
                     }
 
+                    // Crear el detalle con precio al momento de la compra (snapshot)
                     return DetallePedidoEntity.builder()
                             .idProducto(item.getIdProducto())
                             .cantidad(item.getCantidad())
@@ -196,20 +188,25 @@ public class PedidoService implements ProcesarPedidoUseCase {
                 })
                 .toList();
 
-        // PASO 5: Calcular total
+        // PASO 5: Calcular el total del pedido desde el carrito
         BigDecimal total = carrito.getTotal();
 
-        // PASO 6: Generar número de pedido y fecha
+        // PASO 6: Generar número de pedido único y capturar la fecha en hora Bogotá
         String numeroPedido = pedidoRepository.generarNumeroPedido();
-        LocalDateTime fechaPedido = LocalDateTime.now();
 
-        // PASO 7: INSERT Pedido → obtener ID de Oracle
+        // ── FIX TIMEZONE ──────────────────────────────────────────────────────
+        // LocalDateTime.now() sin zona usa UTC en Docker → hora incorrecta.
+        // LocalDateTime.now(ZONA_BOGOTA) garantiza hora colombiana (UTC-5).
+        // Aplica tanto a la fecha del pedido como a la fecha del pago.
+        LocalDateTime fechaPedido = LocalDateTime.now(ZONA_BOGOTA);
+
+        // PASO 7: Insertar el Pedido en Oracle y obtener el ID generado
         var savedPedido = pedidoJpaRepo.saveAndFlush(
                 PedidoEntity.builder()
                         .idUsuario(usuario.getIdUsuario())
-                        .idEstado(ESTADO_PEDIDO_PENDIENTE)
+                        .idEstado(ESTADO_PEDIDO_PENDIENTE) // estado inicial: PENDIENTE
                         .idCarrito(carrito.getIdCarrito())
-                        .fechaPedido(fechaPedido)
+                        .fechaPedido(fechaPedido)           // ← hora Colombia
                         .direccionEnvio(direccionEnvio)
                         .numeroPedido(numeroPedido)
                         .build());
@@ -217,21 +214,23 @@ public class PedidoService implements ProcesarPedidoUseCase {
         Long idPedidoGenerado = savedPedido.getIdPedido();
         log.debug("Pedido insertado con ID: {}", idPedidoGenerado);
 
-        // PASO 8: Guardar detalles con FK del pedido
+        // PASO 8: Guardar los detalles con la FK del pedido recién creado
         detalleEntities.forEach(d -> d.setIdPedido(idPedidoGenerado));
         detallePedidoRepo.saveAll(detalleEntities);
 
-        // PASO 9: Guardar pago
+        // PASO 9: Registrar el pago con fecha en hora de Bogotá
         var pagoEntity = PagoEntity.builder()
                 .idPedido(idPedidoGenerado)
                 .idMetodo(idMetodoPago)
                 .idEstadoPago(ESTADO_PAGO_APROBADO)
                 .monto(total)
-                .fechaPago(LocalDateTime.now())
+                // ── FIX TIMEZONE ──────────────────────────────────────────
+                // Igual que fechaPedido: usar ZONA_BOGOTA para hora Colombia
+                .fechaPago(LocalDateTime.now(ZONA_BOGOTA))
                 .build();
         pagoJpaRepo.save(pagoEntity);
 
-        // PASO 10: Reducir stock
+        // PASO 10: Reducir el stock de cada producto comprado
         carrito.getItems().forEach(item ->
             productoRepository.buscarPorId(item.getIdProducto())
                     .ifPresent(p -> {
@@ -240,22 +239,21 @@ public class PedidoService implements ProcesarPedidoUseCase {
                     })
         );
 
-        // PASO 11: Marcar carrito como CONVERTIDO
+        // PASO 11: Marcar el carrito como CONVERTIDO para que no reaparezca
         carritoRepository.cambiarEstado(
                 carrito.getIdCarrito(), ESTADO_CARRITO_CONVERTIDO);
         log.debug("Carrito {} → CONVERTIDO", carrito.getIdCarrito());
 
-        // PASO 12: Cargar pedido desde BD
+        // PASO 12: Recargar el pedido completo desde BD con todas sus relaciones
         var pedidoRespuesta = pedidoRepository
                 .buscarPorId(idPedidoGenerado)
                 .orElseThrow(() -> new RuntimeException(
                         "Error recuperando pedido: " + idPedidoGenerado));
 
-        // PASO 13: Enriquecer pago de la respuesta
-        // Primero intentar con enriquecerPago(), luego forzar desde memoria
+        // PASO 13: Enriquecer el pago con nombre del método y estado
         enriquecerPago(pedidoRespuesta);
 
-        // Forzar desde memoria (más confiable dentro de la misma transacción)
+        // Forzar datos del pago desde memoria (más confiable dentro de la misma transacción)
         if (pedidoRespuesta.getPago() != null) {
             pedidoRespuesta.getPago().setNombreMetodo(nombreMetodoPago);
             pedidoRespuesta.getPago().setEstadoPagoDescripcion(
@@ -267,7 +265,7 @@ public class PedidoService implements ProcesarPedidoUseCase {
             pedidoRespuesta.setNombreCliente(usuario.getNombreCompleto());
         }
 
-        // PASO 14: Construir pedido para el EMAIL con datos en memoria
+        // PASO 14: Construir el objeto Pedido para el email con datos en memoria
         String estadoPagoEmail = ID_METODO_EFECTIVO.equals(idMetodoPago)
                 ? "PENDIENTE" : "APROBADO";
 
@@ -287,7 +285,7 @@ public class PedidoService implements ProcesarPedidoUseCase {
                 .idPedido(idPedidoGenerado)
                 .numeroPedido(numeroPedido)
                 .estadoDescripcion("PENDIENTE")
-                .fechaPedido(fechaPedido)
+                .fechaPedido(fechaPedido)          // ya es hora Colombia
                 .direccionEnvio(direccionEnvio)
                 .emailCliente(usuario.getCorreo())
                 .nombreCliente(usuario.getNombreCompleto())
@@ -296,14 +294,14 @@ public class PedidoService implements ProcesarPedidoUseCase {
                         .idPedido(idPedidoGenerado)
                         .idMetodo(idMetodoPago)
                         .monto(total)
-                        .fechaPago(pagoEntity.getFechaPago())
+                        .fechaPago(pagoEntity.getFechaPago()) // ya es hora Colombia
                         .nombreMetodo(nombreMetodoPago)
                         .estadoPagoDescripcion(estadoPagoEmail)
                         .build())
                 .total(total)
                 .build();
 
-        // PASO 15: Enviar email (silencioso si falla)
+        // PASO 15: Enviar email de confirmación (falla silenciosamente)
         try {
             notificacionPort.enviarConfirmacionPedido(pedidoEmail);
             log.info("✅ Email enviado a: {}", usuario.getCorreo());
@@ -325,7 +323,7 @@ public class PedidoService implements ProcesarPedidoUseCase {
         List<Pedido> pedidos = pedidoRepository
                 .buscarPorUsuario(usuario.getIdUsuario());
 
-        // Enriquecer el método de pago de cada pedido
+        // Enriquecer el método de pago de cada pedido en el historial
         pedidos.forEach(this::enriquecerPago);
 
         return pedidos;
@@ -342,6 +340,7 @@ public class PedidoService implements ProcesarPedidoUseCase {
                 .orElseThrow(() -> new RuntimeException(
                         "Pedido no encontrado: " + idPedido));
 
+        // Verificar que el pedido pertenezca al usuario autenticado
         if (!pedido.getIdUsuario().equals(usuario.getIdUsuario())) {
             throw new RuntimeException(
                     "No tienes permisos para ver este pedido");

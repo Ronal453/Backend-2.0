@@ -23,14 +23,13 @@ public class ProductoJpaAdapter implements ProductoRepositoryPort {
 
     private final ProductoJpaRepository     productoRepo;
     private final CategoriaJpaRepository    categoriaRepo;
-    private final TipoProductoJpaRepository tipoRepo;      // ← nuevo
+    private final TipoProductoJpaRepository tipoRepo;
     private final ProductoMapper            mapper;
 
     @Override
     public Page<Producto> buscarConFiltros(
             String nombre, Long idCategoria, Long idTipo,
             BigDecimal precioMin, BigDecimal precioMax, Pageable pageable) {
-
         return productoRepo
                 .buscarConFiltros(nombre, idCategoria, idTipo,
                                   precioMin, precioMax, pageable)
@@ -51,7 +50,7 @@ public class ProductoJpaAdapter implements ProductoRepositoryPort {
     }
 
     @Override
-    public List<TipoProducto> listarTipos() {       // ← nuevo
+    public List<TipoProducto> listarTipos() {
         return tipoRepo.findAll()
                 .stream()
                 .map(t -> TipoProducto.builder()
@@ -70,5 +69,25 @@ public class ProductoJpaAdapter implements ProductoRepositoryPort {
     @Override
     public boolean existePorId(Long id) {
         return productoRepo.existsById(id);
+    }
+
+    /**
+     * Lista todos los productos (activos + inactivos) para el admin.
+     * Usa buscarTodosAdmin() que NO filtra por activo = true.
+     */
+    @Override
+    public Page<Producto> buscarTodosAdmin(
+            String nombre, Long idCategoria, Long idTipo, Pageable pageable) {
+        return productoRepo
+                .buscarTodosAdmin(nombre, idCategoria, idTipo, pageable)
+                .map(mapper::toDomain);
+    }
+
+    /**
+     * Cuenta los productos activos para el dashboard de reportes.
+     */
+    @Override
+    public Long contarActivos() {
+        return productoRepo.countByActivoTrue();
     }
 }

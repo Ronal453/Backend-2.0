@@ -1,6 +1,8 @@
 package com.plantopolis.backend.infrastructure.persistence.repository;
 
 import com.plantopolis.backend.infrastructure.persistence.entity.PedidoEntity;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -11,38 +13,14 @@ import java.util.Optional;
 /**
  * Repositorio JPA para PedidoEntity.
  *
- * Usa JOIN FETCH para cargar en una sola consulta SQL todas las relaciones
- * necesarias: estado del pedido, usuario, detalles con sus productos,
- * y pago con su método y estado.
+ *   - findAllAdminWithFilters(): lista todos los pedidos con filtro de estado
+ *   - countTotal(): conteo total para dashboard
+ *   - countPorEstado(): distribución por estado para el gráfico
  *
- * SIN JOIN FETCH: Hibernate haría N+1 queries (una por cada relación lazy),
- * lo cual puede dejar relaciones null si están fuera del contexto de sesión.
- *
- * CON JOIN FETCH: una sola query trae todo → relaciones siempre disponibles
- * → método de pago, nombre del usuario y detalles nunca son null.
- *
- * Ruta destino:
- *   Back/src/main/java/com/plantopolis/backend/
- *   infrastructure/persistence/repository/PedidoJpaRepository.java
  */
-public interface PedidoJpaRepository
-        extends JpaRepository<PedidoEntity, Long> {
+public interface PedidoJpaRepository extends JpaRepository<PedidoEntity, Long> {
 
-    /**
-     * Busca un pedido por ID cargando TODAS sus relaciones en una sola query.
-     *
-     * JOIN FETCH cargado:
-     *   - p.estado    → EstadoPedidoEntity (descripción del estado)
-     *   - p.usuario   → UsuarioEntity (email y nombre del cliente)
-     *   - p.detalles  → List<DetallePedidoEntity>
-     *   - d.producto  → ProductoEntity (nombre e imagen de cada detalle)
-     *   - p.pago      → PagoEntity (LEFT JOIN porque puede no existir aún)
-     *   - pago.metodo → MetodoPagoEntity (nombre del método de pago)
-     *   - pago.estadoPago → EstadoPagoEntity (APROBADO, PENDIENTE, etc.)
-     *
-     * @param idPedido ID del pedido a buscar
-     * @return Optional con el pedido y todas sus relaciones cargadas
-     */
+    /** Busca un pedido por ID con todas sus relaciones cargadas. */
     @Query("""
         SELECT DISTINCT p FROM PedidoEntity p
         JOIN FETCH p.estado
@@ -57,13 +35,7 @@ public interface PedidoJpaRepository
     Optional<PedidoEntity> findByIdWithRelations(
             @Param("idPedido") Long idPedido);
 
-    /**
-     * Busca todos los pedidos de un usuario con todas sus relaciones cargadas.
-     * Ordenados del más reciente al más antiguo.
-     *
-     * @param idUsuario ID del usuario propietario de los pedidos
-     * @return lista de pedidos completos ordenados por fecha descendente
-     */
+    /** Busca todos los pedidos de un usuario con relaciones. */
     @Query("""
         SELECT DISTINCT p FROM PedidoEntity p
         JOIN FETCH p.estado
@@ -79,18 +51,56 @@ public interface PedidoJpaRepository
     List<PedidoEntity> findByIdUsuarioWithRelations(
             @Param("idUsuario") Long idUsuario);
 
+    
     /**
-     * Verifica si ya existe un pedido con el número dado.
-     * Usado para garantizar que el número de pedido sea único.
+     * Lista todos los pedidos del sistema con filtro opcional por estado.
+     * Incluye JOIN FETCH de relaciones para evitar N+1 queries.
      *
-     * @param numeroPedido número de pedido a verificar
-     * @return true si ya existe un pedido con ese número
+     * countQuery separado: necesario cuando se usa JOIN FETCH + Pageable
+     * en Spring Data JPA para que la paginación funcione correctamente.
+     *
+     * @param estado descripción del estado (ej: "PENDIENTE") o null para todos
      */
+    @Query(
+        value = """
+            SELECT DISTINCT p FROM PedidoEntity p
+            JOIN FETCH p.estado
+            JOIN FETCH p.usuario
+            LEFT JOIN FETCH p.detalles d
+            LEFT JOIN FETCH d.producto
+            LEFT JOIN FETCH p.pago pago
+            LEFT JOIN FETCH pago.metodo
+            LEFT JOIN FETCH pago.estadoPago
+            WHERE (:estado IS NULL OR p.estado.descripcionEstado = :estado)
+            ORDER BY p.fechaPedido DESC
+        """,
+        countQuery = """
+            SELECT COUNT(DISTINCT p) FROM PedidoEntity p
+            JOIN p.estado
+            WHERE (:estado IS NULL OR p.estado.descripcionEstado = :estado)
+        """
+    )
+    Page<PedidoEntity> findAllAdminWithFilters(
+            @Param("estado") String estado,
+            Pageable pageable
+    );
+
+    
+    /**
+     * Distribución de pedidos por estado para el gráfico del dashboard.
+     * Devuelve List<Object[]> donde cada elemento es [descripcionEstado, count].
+     */
+    @Query("""
+        SELECT e.descripcionEstado, COUNT(p)
+        FROM PedidoEntity p
+        JOIN p.estado e
+        GROUP BY e.descripcionEstado
+    """)
+    List<Object[]> countPorEstado();
+
+    /** Verifica si ya existe un pedido con el número dado (para generación única). */
     boolean existsByNumeroPedido(String numeroPedido);
 
-    /**
-     * Busca pedidos por usuario sin JOIN FETCH (versión simple).
-     * Mantenido por compatibilidad, se prefiere findByIdUsuarioWithRelations.
-     */
+    /** Busca pedidos por usuario sin JOIN FETCH (versión simple). */
     List<PedidoEntity> findByIdUsuarioOrderByFechaPedidoDesc(Long idUsuario);
 }

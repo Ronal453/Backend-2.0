@@ -5,6 +5,7 @@ import com.plantopolis.backend.domain.port.in.RegistrarUsuarioUseCase;
 import com.plantopolis.backend.infrastructure.adapter.in.web.dto.AuthResponse;
 import com.plantopolis.backend.infrastructure.adapter.in.web.dto.LoginRequest;
 import com.plantopolis.backend.infrastructure.adapter.in.web.dto.RegistroRequest;
+import com.plantopolis.backend.infrastructure.security.JwtUtil;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.ExampleObject;
@@ -25,7 +26,8 @@ import org.springframework.web.bind.annotation.*;
 @Tag(
     name = "Autenticación",
     description = "Registro e inicio de sesión de usuarios. " +
-                  "El token JWT obtenido debe usarse en el header: Authorization: Bearer {token}"
+                  "El token JWT obtenido debe usarse en el header: " +
+                  "Authorization: Bearer {token}"
 )
 public class AuthController {
 
@@ -33,7 +35,10 @@ public class AuthController {
     private final LoginUseCase            loginUseCase;
     private final PasswordEncoder         passwordEncoder;
 
-    // ── REGISTRO ─────────────────────────────────────────────
+    //  Inyectamos JwtUtil para extraer el rol del token
+    private final JwtUtil jwtUtil;
+
+    // ── REGISTRO ─────────────────────────────────────────────────────────
     @Operation(
         summary = "Registrar nuevo usuario",
         description = "Crea una cuenta nueva con rol CLIENTE. " +
@@ -59,30 +64,38 @@ public class AuthController {
         ),
         @ApiResponse(
             responseCode = "400",
-            description = "Datos inválidos (campos vacíos, email mal formado, contraseña corta)"
+            description = "Datos inválidos"
         )
     })
     @PostMapping("/registro")
     public ResponseEntity<AuthResponse> registro(
             @Valid @RequestBody RegistroRequest request) {
-             var usuario = registrarUseCase.registrar(
+
+        // Registrar el usuario (devuelve el usuario guardado con su ID)
+        var usuario = registrarUseCase.registrar(
                 request.nombre(),
                 request.email(),
                 request.password(),
-                request.telefono(),    
-                request.direccion()); 
-        return ResponseEntity.status(HttpStatus.CREATED)
+                request.telefono(),
+                request.direccion()
+        );
+
+        // El registro siempre crea usuarios con rol CLIENTE
+        return ResponseEntity
+                .status(HttpStatus.CREATED)
                 .body(new AuthResponse(
                         null,
                         usuario.getCorreo(),
                         "CLIENTE",
-                        "Usuario registrado exitosamente"));
+                        "Usuario registrado exitosamente"
+                ));
     }
 
-    // ── LOGIN ────────────────────────────────────────────────
+    // ── LOGIN ─────────────────────────────────────────────────────────────
     @Operation(
         summary = "Iniciar sesión",
         description = "Autentica un usuario y devuelve un token JWT válido por 24 horas. " +
+                      "**El campo `rol` de la respuesta indica si es CLIENTE o ADMINISTRADOR.** " +
                       "Usa el token en el botón **Authorize** de esta página."
     )
     @ApiResponses({
@@ -95,8 +108,8 @@ public class AuthController {
                     value = """
                         {
                           "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
-                          "email": "usuario@email.com",
-                          "rol": "CLIENTE",
+                          "email": "admin@plantopolis.com",
+                          "rol": "ADMINISTRADOR",
                           "mensaje": "Login exitoso"
                         }
                         """
@@ -111,8 +124,26 @@ public class AuthController {
     @PostMapping("/login")
     public ResponseEntity<AuthResponse> login(
             @Valid @RequestBody LoginRequest request) {
+
+        // PASO 1: Autenticar y generar el JWT
+        // loginUseCase.login() verifica la contraseña con BCrypt y genera
+        // un token con el claim "rol" (ej: "ADMINISTRADOR") dentro del payload
         String token = loginUseCase.login(request.email(), request.password());
+
+        // PASO 2: ✅ [FIX] Extraer el rol del JWT recién generado
+        // JwtUtil.extraerRol() lee el claim "rol" del payload del token.
+        // Antes esta línea no existía y se devolvía null → el frontend
+        // no podía detectar el rol ADMINISTRADOR → el panel admin no aparecía.
+        String rol = jwtUtil.extraerRol(token);
+
+        // PASO 3: Devolver la respuesta completa con el rol real
+        // El frontend guarda { email, rol } en AuthContext y localStorage,
+        // y Navbar usa user.rol === 'ADMINISTRADOR' para mostrar el panel
         return ResponseEntity.ok(new AuthResponse(
-                token, request.email(), null, "Login exitoso"));
+                token,
+                request.email(),
+                rol,            // ← antes era null, ahora es "ADMINISTRADOR" o "CLIENTE"
+                "Login exitoso"
+        ));
     }
 }

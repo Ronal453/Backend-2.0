@@ -11,6 +11,11 @@ import java.math.BigDecimal;
 
 public interface ProductoJpaRepository extends JpaRepository<ProductoEntity, Long> {
 
+    // ── Catálogo público (solo activos) ────────────────────────────────────
+    /**
+     * Búsqueda del catálogo con filtros opcionales.
+     * Solo devuelve productos con activo = true.
+     */
     @Query("""
         SELECT p FROM ProductoEntity p
         WHERE p.activo = true
@@ -29,4 +34,29 @@ public interface ProductoJpaRepository extends JpaRepository<ProductoEntity, Lon
             @Param("precioMax") BigDecimal precioMax,
             Pageable pageable
     );
+
+     /**
+     * [NUEVO Sprint 5] Búsqueda admin: devuelve TODOS los productos,
+     * incluyendo los desactivados (activo = false).
+     * No tiene filtro de precio porque el admin necesita ver todo.
+     */
+    @Query("""
+        SELECT p FROM ProductoEntity p
+        WHERE (:nombre IS NULL OR 
+               LOWER(p.nombreProducto) LIKE LOWER(CONCAT('%', :nombre, '%')))
+          AND (:idCategoria IS NULL OR p.idCategoria = :idCategoria)
+          AND (:idTipo IS NULL OR p.idTipo = :idTipo)
+    """)
+    Page<ProductoEntity> buscarTodosAdmin(
+            @Param("nombre") String nombre,
+            @Param("idCategoria") Long idCategoria,
+            @Param("idTipo") Long idTipo,
+            Pageable pageable
+    );
+
+    // ── Métricas para reportes ─────────────────────────────────────────────
+    /**
+     * Cuenta los productos activos para el dashboard.
+     */
+    Long countByActivoTrue();
 }
