@@ -6,6 +6,8 @@ import com.plantopolis.backend.infrastructure.persistence.entity.CategoriaEntity
 import com.plantopolis.backend.infrastructure.persistence.entity.ProductoEntity;
 import org.springframework.stereotype.Component;
 
+import java.math.BigDecimal;
+
 @Component
 public class ProductoMapper {
 
@@ -18,14 +20,17 @@ public class ProductoMapper {
                 .nombreProducto(entity.getNombreProducto())
                 .descripcion(entity.getDescripcion())
                 .precio(entity.getPrecio())
+                // NUEVO SCHEMA V2
+                .porcentajeIva(entity.getPorcentajeIva())
                 .stock(entity.getStock())
+                // NUEVO SCHEMA V2
+                .stockMinimoAlerta(entity.getStockMinimoAlerta())
                 .imagenUrl(entity.getImagenUrl())
                 .cuidados(entity.getCuidados())
                 .luz(entity.getLuz())
                 .riego(entity.getRiego())
                 .tamanioEstimado(entity.getTamanioEstimado())
                 .activo(entity.getActivo())
-                // Nombres enriquecidos desde relaciones
                 .nombreCategoria(entity.getCategoria() != null
                         ? entity.getCategoria().getNombreCategoria() : null)
                 .nombreTipo(entity.getTipo() != null
@@ -42,7 +47,12 @@ public class ProductoMapper {
                 .nombreProducto(domain.getNombreProducto())
                 .descripcion(domain.getDescripcion())
                 .precio(domain.getPrecio())
+                .porcentajeIva(domain.getPorcentajeIva() != null
+                        ? domain.getPorcentajeIva() : new BigDecimal("19.00"))
                 .stock(domain.getStock())
+                // default 5 si no se especifica
+                .stockMinimoAlerta(domain.getStockMinimoAlerta() != null
+                        ? domain.getStockMinimoAlerta() : 5)
                 .imagenUrl(domain.getImagenUrl())
                 .cuidados(domain.getCuidados())
                 .luz(domain.getLuz())

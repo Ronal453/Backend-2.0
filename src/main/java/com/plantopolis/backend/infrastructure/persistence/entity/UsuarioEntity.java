@@ -35,10 +35,17 @@ public class UsuarioEntity {
     @Column(name = "DIRECCION", length = 255)
     private String direccion;
 
+    //soft delete de usuarios (1=activo, 0=inactivo).
+    @Column(name = "ACTIVO", nullable = false)
+    private Boolean activo;
+
     @Column(name = "FECHA_REGISTRO")
     private LocalDateTime fechaRegistro;
 
-    // Relación con Rol para obtener nombre
+    //NOT NULL con DEFAULT CURRENT_TIMESTAMP en Oracle.
+    @Column(name = "FECHA_ACTUALIZACION")
+    private LocalDateTime fechaActualizacion;
+
     @ManyToOne(fetch = FetchType.EAGER)
     @JoinColumn(name = "ID_ROL", insertable = false, updatable = false)
     private RolEntity rol;

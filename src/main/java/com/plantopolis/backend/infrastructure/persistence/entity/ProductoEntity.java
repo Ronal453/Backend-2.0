@@ -26,20 +26,28 @@ public class ProductoEntity {
     @Column(name = "NOMBRE_PRODUCTO", nullable = false, length = 150)
     private String nombreProducto;
 
-    @Lob                          // ← CLOB en Oracle
+    @Lob
     @Column(name = "DESCRIPCION")
     private String descripcion;
 
     @Column(name = "PRECIO", nullable = false, precision = 10, scale = 2)
     private BigDecimal precio;
 
+    // porcentaje de IVA aplicable, default 19.00 en BD.
+    @Column(name = "PORCENTAJE_IVA", nullable = false, precision = 5, scale = 2)
+    private BigDecimal porcentajeIva;
+
     @Column(name = "STOCK", nullable = false)
     private Integer stock;
+
+    // umbral de alerta de stock bajo.
+    @Column(name = "STOCK_MINIMO_ALERTA", nullable = false)
+    private Integer stockMinimoAlerta;
 
     @Column(name = "IMAGEN_URL", length = 300)
     private String imagenUrl;
 
-    @Lob                          // ← CLOB en Oracle
+    @Lob
     @Column(name = "CUIDADOS")
     private String cuidados;
 

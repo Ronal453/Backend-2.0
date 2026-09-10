@@ -14,7 +14,13 @@ public class Producto {
     private String nombreProducto;
     private String descripcion;
     private BigDecimal precio;
+
+    private BigDecimal porcentajeIva;
+
     private Integer stock;
+
+    private Integer stockMinimoAlerta;
+
     private String imagenUrl;
     private String cuidados;
     private String luz;

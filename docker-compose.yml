@@ -23,24 +23,21 @@ services:
   # ── BACKEND Spring Boot ───────────────────────────────────
   backend:
     build:
-      context: .              # Busca el Dockerfile en la carpeta Back/
-      dockerfile: Dockerfile  # Nombre del Dockerfile del backend
+      context: .
+      dockerfile: Dockerfile
     container_name: plantopolis-backend
     ports:
-      - "8080:8080"   # Expone la API REST en el puerto 8080
+      - "8080:8080"
     environment:
-      # URL de conexión a Oracle — usa el nombre del contenedor como host
-      # Dentro de la red Docker, "oracle-xe" resuelve la IP del contenedor
       SPRING_DATASOURCE_URL: jdbc:oracle:thin:@//oracle-xe:1521/XEPDB1
-
-      # Las variables con ${} se leen del archivo .env en la misma carpeta
-      SPRING_DATASOURCE_USERNAME: ${DB_USERNAME}   
-      SPRING_DATASOURCE_PASSWORD: ${DB_PASSWORD}   
-      SPRING_MAIL_USERNAME: ${MAIL_USERNAME}        # Correo para notificaciones
-      SPRING_MAIL_PASSWORD: ${MAIL_PASSWORD}        # Contraseña del correo
-      JWT_SECRET: ${JWT_SECRET}                     # Clave secreta para firmar tokens JWT
+      SPRING_DATASOURCE_USERNAME: ${DB_USERNAME}
+      SPRING_DATASOURCE_PASSWORD: ${DB_PASSWORD}
+      # NUEVO: Resend reemplaza SMTP (bloqueado por la red).
+      RESEND_API_KEY: ${RESEND_API_KEY}
+      MAIL_FROM: ${MAIL_FROM}
+      JWT_SECRET: ${JWT_SECRET}
     depends_on:
-      - oracle-xe     # Espera que Oracle inicie antes de arrancar el backend
+      - oracle-xe
     networks:
       - plantopolis-net
     restart: unless-stopped
@@ -48,7 +45,7 @@ services:
   # ── FRONTEND React + Nginx ────────────────────────────────
   frontend:
     build:
-      context: ../From    # Busca el Dockerfile en la carpeta From/
+      context: ../Frontend
       dockerfile: Dockerfile
     container_name: plantopolis-frontend
     ports:

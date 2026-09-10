@@ -29,12 +29,15 @@ public class DetallePedidoEntity {
     @Column(name = "PRECIO_UNITARIO", nullable = false, precision = 10, scale = 2)
     private BigDecimal precioUnitario;
 
-    // Relación con pedido (para cascada)
+    // NUEVO SCHEMA V2: SUBTOTAL ahora es columna persistida (antes se
+    // calculaba solo en Java). Se llena al construir el detalle.
+    @Column(name = "SUBTOTAL", nullable = false, precision = 10, scale = 2)
+    private BigDecimal subtotal;
+
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "ID_PEDIDO", insertable = false, updatable = false)
     private PedidoEntity pedido;
 
-    // Relación con producto para datos enriquecidos
     @ManyToOne(fetch = FetchType.EAGER)
     @JoinColumn(name = "ID_PRODUCTO", insertable = false, updatable = false)
     private ProductoEntity producto;

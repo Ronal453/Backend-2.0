@@ -19,6 +19,10 @@ public class Usuario {
     private String        contrasenaHash;
     private String        telefono;
     private String        direccion;
-    private LocalDateTime fechaRegistro;   
+    private LocalDateTime fechaRegistro;
     private String        rolNombre;
+
+    // reflejan ACTIVO y FECHA_ACTUALIZACION de USUARIO.
+    private Boolean       activo;
+    private LocalDateTime fechaActualizacion;
 }

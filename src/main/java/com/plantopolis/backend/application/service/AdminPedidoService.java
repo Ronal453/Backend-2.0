@@ -47,12 +47,12 @@ public class AdminPedidoService implements GestionarPedidosAdminUseCase {
 
     // Mapa de transiciones válidas entre estados
     private static final Map<String, List<String>> TRANSICIONES_VALIDAS = Map.of(
-        "PENDIENTE",  List.of("PREPARANDO", "CANCELADO"),
-        "PREPARANDO", List.of("ENVIADO",    "CANCELADO"),
-        "ENVIADO",    List.of("ENTREGADO",  "CANCELADO"),
-        "ENTREGADO",  List.of(),
-        "CANCELADO",  List.of()
-    );
+    "PENDIENTE",       List.of("EN_PREPARACION", "CANCELADO"),
+    "EN_PREPARACION",  List.of("ENVIADO",         "CANCELADO"),
+    "ENVIADO",         List.of("ENTREGADO",       "CANCELADO"),
+    "ENTREGADO",       List.of(),
+    "CANCELADO",       List.of()
+);
 
     // ── Listar todos los pedidos ──────────────────────────────────────────
     @Override
@@ -115,8 +115,9 @@ public class AdminPedidoService implements GestionarPedidosAdminUseCase {
                 .orElseThrow(() -> new RuntimeException(
                         "Estado no encontrado en BD: " + nuevoEstadoUpper));
 
+        
         // PASO 5: Persistir el cambio de estado
-        pedidoEntity.setIdEstado(nuevoEstadoEntity.getIdEstado());
+        pedidoEntity.setIdEstado(nuevoEstadoEntity.getIdEstadoPedido()); 
         pedidoJpaRepo.saveAndFlush(pedidoEntity);
 
         // PASO 6: Limpiar caché L1 para que la recarga lea BD fresca

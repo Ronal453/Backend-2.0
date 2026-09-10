@@ -17,8 +17,10 @@ public class UsuarioMapper {
                 .contrasenaHash(entity.getContrasenaHash())
                 .telefono(entity.getTelefono())
                 .direccion(entity.getDireccion())
-                .fechaRegistro(entity.getFechaRegistro())  // ← nuevo
+                .fechaRegistro(entity.getFechaRegistro())
                 .rolNombre(entity.getRol() != null ? entity.getRol().getNombre() : null)
+                .activo(entity.getActivo())
+                .fechaActualizacion(entity.getFechaActualizacion())
                 .build();
     }
 
@@ -32,7 +34,9 @@ public class UsuarioMapper {
                 .contrasenaHash(domain.getContrasenaHash())
                 .telefono(domain.getTelefono())
                 .direccion(domain.getDireccion())
-                .fechaRegistro(domain.getFechaRegistro())  // ← nuevo
+                .fechaRegistro(domain.getFechaRegistro())
+                .activo(domain.getActivo())
+                .fechaActualizacion(domain.getFechaActualizacion())
                 .build();
     }
 }

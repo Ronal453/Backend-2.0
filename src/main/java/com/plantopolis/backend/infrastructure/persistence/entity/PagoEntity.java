@@ -30,10 +30,17 @@ public class PagoEntity {
     @Column(name = "MONTO", nullable = false, precision = 10, scale = 2)
     private BigDecimal monto;
 
+    // para integración futura con pasarela de pago real.
+    @Column(name = "PASARELA_TRANSACCION_ID", length = 100)
+    private String pasarelaTransaccionId;
+
+    // URL de la factura PDF generada para el pedido.
+    @Column(name = "FACTURA_PDF_URL", length = 300)
+    private String facturaPdfUrl;
+
     @Column(name = "FECHA_PAGO")
     private LocalDateTime fechaPago;
 
-    // Relaciones de solo lectura
     @OneToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "ID_PEDIDO", insertable = false, updatable = false)
     private PedidoEntity pedido;

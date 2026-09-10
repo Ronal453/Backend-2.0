@@ -13,10 +13,15 @@ public class Pedido {
     private Long idPedido;
     private Long idUsuario;
     private Long idEstado;
-    private Long idCarrito;
     private LocalDateTime fechaPedido;
     private String direccionEnvio;
     private String numeroPedido;
+
+    // subtotal e impuestos discriminados (antes solo
+    // existía "total", calculado sumando los detalles).
+    private BigDecimal subtotal;
+    private BigDecimal impuestos;
+
     // Enriquecidos
     private String estadoDescripcion;
     private String emailCliente;

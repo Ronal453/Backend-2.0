@@ -13,8 +13,8 @@ public class EstadoPedidoEntity {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    @Column(name = "ID_ESTADO")
-    private Long idEstado;
+    @Column(name = "ID_ESTADO_PEDIDO")
+    private Long idEstadoPedido;
 
     @Column(name = "DESCRIPCION_ESTADO", nullable = false, length = 80)
     private String descripcionEstado;

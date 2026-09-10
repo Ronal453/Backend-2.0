@@ -14,7 +14,6 @@ public class RolEntity {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     @Column(name = "ID_ROL")
     private Long idRol;
-
-    @Column(name = "NOMBRE", nullable = false, length = 50)
+    @Column(name = "NOMBRE_ROL", nullable = false, length = 50)
     private String nombre;
 }

@@ -27,12 +27,14 @@ public class CarritoEntity {
     @Column(name = "FECHA_CREACION")
     private LocalDateTime fechaCreacion;
 
-    // Relación con items
+    // NOT NULL con DEFAULT CURRENT_TIMESTAMP en Oracle.
+    @Column(name = "FECHA_ACTUALIZACION")
+    private LocalDateTime fechaActualizacion;
+
     @OneToMany(mappedBy = "carrito", fetch = FetchType.EAGER,
                cascade = CascadeType.ALL, orphanRemoval = true)
     private List<CarritoItemEntity> items;
 
-    // Relación con estado
     @ManyToOne(fetch = FetchType.EAGER)
     @JoinColumn(name = "ID_ESTADO_CARRITO",
                 insertable = false, updatable = false)

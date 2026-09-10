@@ -19,68 +19,67 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.time.LocalDateTime;
-import java.time.ZoneId; // ← importar ZoneId para manejar zonas horarias
+import java.time.ZoneId;
+import java.util.ArrayList;
 import java.util.List;
 
 /**
  * Servicio de aplicación que implementa ProcesarPedidoUseCase.
  *
- * TIMEZONE FIX:
- *   Todas las fechas (fechaPedido y fechaPago) se generan con
- *   LocalDateTime.now(ZONA_BOGOTA) para que Oracle almacene la hora
- *   de Colombia (UTC-5) y no la hora UTC del servidor Docker.
+ * CAMBIOS SCHEMA V2:
+ *   - Pedido ya no referencia id_carrito (se elimina esa relación).
+ *   - Pedido ahora persiste subtotal/impuestos/total como columnas propias
+ *     (antes el total se recalculaba en el mapper sumando detalles).
+ *   - DetallePedido ahora persiste su propio subtotal.
+ *   - El estado "post-checkout" del carrito se renombró de CONVERTIDO (id=2)
+ *     a PROCESADO (id=3), por el nuevo orden de inserción en ESTADOCARRITO.
+ *   - Todos los métodos de pago quedan APROBADO por simplicidad (se
+ *     ajustará cuando se defina la integración real con pasarela de pago).
  */
 @Slf4j
 @Service
 @RequiredArgsConstructor
 public class PedidoService implements ProcesarPedidoUseCase {
 
-    // ── Puertos del dominio ───────────────────────────────────────────────────
     private final UsuarioRepositoryPort  usuarioRepository;
     private final CarritoRepositoryPort  carritoRepository;
     private final ProductoRepositoryPort productoRepository;
     private final PedidoRepositoryPort   pedidoRepository;
     private final NotificacionPort       notificacionPort;
 
-    // ── Repositorios JPA directos ─────────────────────────────────────────────
     private final PedidoJpaRepository        pedidoJpaRepo;
     private final DetallePedidoJpaRepository detallePedidoRepo;
     private final PagoJpaRepository          pagoJpaRepo;
     private final MetodoPagoJpaRepository    metodoPagoRepo;
     private final PedidoMapper               pedidoMapper;
 
-    // ── IDs de estados según datos iniciales del SQL ──────────────────────────
+    // ── IDs de estados según los INSERT del ────────────────────
     private static final Long ESTADO_PEDIDO_PENDIENTE   = 1L;
-    private static final Long ESTADO_CARRITO_CONVERTIDO = 2L;
-    private static final Long ESTADO_PAGO_APROBADO      = 2L;
-    private static final Long ID_METODO_EFECTIVO        = 4L;
 
-    // ── Zona horaria de Colombia ──────────────────────────────────────────────
-    // Colombia no usa horario de verano, siempre UTC-5
-    // Se aplica a TODAS las fechas que se persisten en Oracle
+    private static final Long ESTADO_CARRITO_PROCESADO  = 3L;
+
+    private static final Long ESTADO_PAGO_APROBADO      = 2L;
+
     private static final ZoneId ZONA_BOGOTA = ZoneId.of("America/Bogota");
 
-    // ─────────────────────────────────────────────────────────────────────────
+    // ─────────────────────────────────────────────────────────────────────
     /**
      * Enriquece el pago de un pedido con nombre del método y estado.
-     * Carga el PagoEntity directamente desde BD usando el ID del pedido,
-     * sin depender de relaciones JPA que pueden quedar null por caché de Hibernate.
+     * SIMPLIFICADO SCHEMA V2: todos los métodos de pago quedan APROBADO
+     * (ya no existe el concepto de "contra entrega" con pago PENDIENTE).
      */
     private void enriquecerPago(Pedido pedido) {
         if (pedido == null || pedido.getIdPedido() == null) return;
 
-        // Si el pago ya tiene el nombre del método, no hacer nada
         if (pedido.getPago() != null
                 && pedido.getPago().getNombreMetodo() != null
                 && !pedido.getPago().getNombreMetodo().isEmpty()) {
-            log.debug("Pago ya enriquecido: {}", pedido.getPago().getNombreMetodo());
             return;
         }
 
-        // Cargar el PagoEntity directamente por idPedido (query simple por columna)
         var pagoEntityOpt = pagoJpaRepo.findByIdPedido(pedido.getIdPedido());
-
         if (pagoEntityOpt.isEmpty()) {
             log.warn("No se encontró pago para pedido {}", pedido.getIdPedido());
             return;
@@ -88,26 +87,15 @@ public class PedidoService implements ProcesarPedidoUseCase {
 
         PagoEntity pagoEntity = pagoEntityOpt.get();
         Long idMetodo = pagoEntity.getIdMetodo();
+        if (idMetodo == null) return;
 
-        if (idMetodo == null) {
-            log.warn("PagoEntity sin idMetodo para pedido {}", pedido.getIdPedido());
-            return;
-        }
-
-        // Cargar el nombre del método directamente desde MetodoPagoJpaRepository
         String nombreMetodo = metodoPagoRepo.findById(idMetodo)
                 .map(m -> m.getNombreMetodo())
                 .orElse("DESCONOCIDO");
 
-        // EFECTIVO (id=4) = Contra entrega = pago pendiente hasta recibir físicamente
-        // Todos los demás = pago electrónico = APROBADO inmediatamente
-        String estadoPago = ID_METODO_EFECTIVO.equals(idMetodo)
-                ? "PENDIENTE" : "APROBADO";
+        // SIMPLIFICADO SCHEMA V2: siempre APROBADO por ahora.
+        String estadoPago = "APROBADO";
 
-        log.debug("Pago enriquecido: método={} (id={}), estado={}",
-                nombreMetodo, idMetodo, estadoPago);
-
-        // Actualizar el dominio Pago con los datos cargados desde BD
         if (pedido.getPago() != null) {
             pedido.getPago().setNombreMetodo(nombreMetodo);
             pedido.getPago().setEstadoPagoDescripcion(estadoPago);
@@ -116,7 +104,6 @@ public class PedidoService implements ProcesarPedidoUseCase {
                 pedido.getPago().setMonto(pagoEntity.getMonto());
             }
         } else {
-            // Construir el objeto Pago completo si no venía cargado
             Pago pago = Pago.builder()
                     .idPago(pagoEntity.getIdPago())
                     .idPedido(pedido.getIdPedido())
@@ -130,107 +117,120 @@ public class PedidoService implements ProcesarPedidoUseCase {
         }
     }
 
-    // ─────────────────────────────────────────────────────────────────────────
+    // ─────────────────────────────────────────────────────────────────────
     @Override
     @Transactional
     public Pedido procesarPedido(String email,
                                   Long idMetodoPago,
                                   String direccionEnvio) {
 
-        // PASO 1: Obtener usuario autenticado por email (del token JWT)
+        // PASO 1: usuario autenticado
         var usuario = usuarioRepository.buscarPorEmail(email)
                 .orElseThrow(() -> new RuntimeException(
                         "Usuario no encontrado: " + email));
 
-        // PASO 2: Obtener el carrito activo del usuario
+        // PASO 2: carrito activo
         var carrito = carritoRepository
                 .buscarCarritoActivo(usuario.getIdUsuario())
                 .orElseThrow(() -> new RuntimeException(
                         "No tienes un carrito activo"));
 
-        // Validar que el carrito tenga al menos un ítem
         if (carrito.getItems() == null || carrito.getItems().isEmpty()) {
             throw new RuntimeException("El carrito está vacío");
         }
 
-        // PASO 3: Validar método de pago y obtener su nombre
+        // PASO 3: validar método de pago
         var metodoPagoEntity = metodoPagoRepo.findById(idMetodoPago)
                 .orElseThrow(() -> new RuntimeException(
                         "Método de pago no válido: " + idMetodoPago));
         String nombreMetodoPago = metodoPagoEntity.getNombreMetodo();
-        log.debug("Checkout con método: {} (id={})", nombreMetodoPago, idMetodoPago);
 
-        // PASO 4: Validar stock de cada producto y construir la lista de detalles
-        List<DetallePedidoEntity> detalleEntities = carrito.getItems()
-                .stream()
-                .map(item -> {
-                    var producto = productoRepository
-                            .buscarPorId(item.getIdProducto())
-                            .orElseThrow(() -> new RuntimeException(
-                                    "Producto no encontrado: " + item.getIdProducto()));
+        // PASO 4: validar stock y construir detalles + calcular subtotal/impuestos
+        // Cada línea de detalle ahora calcula su propio
+        // subtotal (precio*cantidad) y se acumula el subtotal general y
+        // los impuestos según el porcentaje_iva de cada producto.
+        List<DetallePedidoEntity> detalleEntities = new ArrayList<>();
+        BigDecimal subtotalPedido = BigDecimal.ZERO;
+        BigDecimal impuestosPedido = BigDecimal.ZERO;
 
-                    if (!Boolean.TRUE.equals(producto.getActivo())) {
-                        throw new RuntimeException(
-                                "Producto no disponible: " + producto.getNombreProducto());
-                    }
-                    if (producto.getStock() < item.getCantidad()) {
-                        throw new RuntimeException(
-                                "Stock insuficiente para '" + producto.getNombreProducto()
-                                + "'. Disponible: " + producto.getStock());
-                    }
+        for (var item : carrito.getItems()) {
+            var producto = productoRepository
+                    .buscarPorId(item.getIdProducto())
+                    .orElseThrow(() -> new RuntimeException(
+                            "Producto no encontrado: " + item.getIdProducto()));
 
-                    // Crear el detalle con precio al momento de la compra (snapshot)
-                    return DetallePedidoEntity.builder()
-                            .idProducto(item.getIdProducto())
-                            .cantidad(item.getCantidad())
-                            .precioUnitario(item.getPrecioUnitario())
-                            .build();
-                })
-                .toList();
+            if (!Boolean.TRUE.equals(producto.getActivo())) {
+                throw new RuntimeException(
+                        "Producto no disponible: " + producto.getNombreProducto());
+            }
+            if (producto.getStock() < item.getCantidad()) {
+                throw new RuntimeException(
+                        "Stock insuficiente para '" + producto.getNombreProducto()
+                        + "'. Disponible: " + producto.getStock());
+            }
 
-        // PASO 5: Calcular el total del pedido desde el carrito
-        BigDecimal total = carrito.getTotal();
+            BigDecimal subtotalLinea = item.getPrecioUnitario()
+                    .multiply(BigDecimal.valueOf(item.getCantidad()));
 
-        // PASO 6: Generar número de pedido único y capturar la fecha en hora Bogotá
+            // Porcentaje de IVA del producto (por defecto 19% si viene null)
+            BigDecimal porcentajeIva = producto.getPorcentajeIva() != null
+                    ? producto.getPorcentajeIva()
+                    : new BigDecimal("19.00");
+
+            BigDecimal impuestoLinea = subtotalLinea
+                    .multiply(porcentajeIva)
+                    .divide(new BigDecimal("100"), 2, RoundingMode.HALF_UP);
+
+            subtotalPedido = subtotalPedido.add(subtotalLinea);
+            impuestosPedido = impuestosPedido.add(impuestoLinea);
+
+            detalleEntities.add(DetallePedidoEntity.builder()
+                    .idProducto(item.getIdProducto())
+                    .cantidad(item.getCantidad())
+                    .precioUnitario(item.getPrecioUnitario())
+                    // NUEVO SCHEMA V2: subtotal persistido por línea
+                    .subtotal(subtotalLinea)
+                    .build());
+        }
+
+        BigDecimal totalPedido = subtotalPedido.add(impuestosPedido);
+
+        // PASO 5: número de pedido y fecha
         String numeroPedido = pedidoRepository.generarNumeroPedido();
-
-        // ── FIX TIMEZONE ──────────────────────────────────────────────────────
-        // LocalDateTime.now() sin zona usa UTC en Docker → hora incorrecta.
-        // LocalDateTime.now(ZONA_BOGOTA) garantiza hora colombiana (UTC-5).
-        // Aplica tanto a la fecha del pedido como a la fecha del pago.
         LocalDateTime fechaPedido = LocalDateTime.now(ZONA_BOGOTA);
 
-        // PASO 7: Insertar el Pedido en Oracle y obtener el ID generado
+        // PASO 6: insertar el Pedido
         var savedPedido = pedidoJpaRepo.saveAndFlush(
                 PedidoEntity.builder()
                         .idUsuario(usuario.getIdUsuario())
-                        .idEstado(ESTADO_PEDIDO_PENDIENTE) // estado inicial: PENDIENTE
-                        .idCarrito(carrito.getIdCarrito())
-                        .fechaPedido(fechaPedido)           // ← hora Colombia
+                        .idEstado(ESTADO_PEDIDO_PENDIENTE)
+                        .fechaPedido(fechaPedido)
                         .direccionEnvio(direccionEnvio)
                         .numeroPedido(numeroPedido)
+                        // NUEVO SCHEMA V2: columnas NOT NULL calculadas arriba
+                        .subtotal(subtotalPedido)
+                        .impuestos(impuestosPedido)
+                        .total(totalPedido)
                         .build());
 
         Long idPedidoGenerado = savedPedido.getIdPedido();
-        log.debug("Pedido insertado con ID: {}", idPedidoGenerado);
 
-        // PASO 8: Guardar los detalles con la FK del pedido recién creado
+        // PASO 7: guardar detalles con la FK del pedido
         detalleEntities.forEach(d -> d.setIdPedido(idPedidoGenerado));
         detallePedidoRepo.saveAll(detalleEntities);
 
-        // PASO 9: Registrar el pago con fecha en hora de Bogotá
+        // PASO 8: registrar el pago
+        // SIMPLIFICADO SCHEMA V2: siempre queda APROBADO (id=2).
         var pagoEntity = PagoEntity.builder()
                 .idPedido(idPedidoGenerado)
                 .idMetodo(idMetodoPago)
                 .idEstadoPago(ESTADO_PAGO_APROBADO)
-                .monto(total)
-                // ── FIX TIMEZONE ──────────────────────────────────────────
-                // Igual que fechaPedido: usar ZONA_BOGOTA para hora Colombia
+                .monto(totalPedido)
                 .fechaPago(LocalDateTime.now(ZONA_BOGOTA))
                 .build();
         pagoJpaRepo.save(pagoEntity);
 
-        // PASO 10: Reducir el stock de cada producto comprado
+        // PASO 9: reducir stock
         carrito.getItems().forEach(item ->
             productoRepository.buscarPorId(item.getIdProducto())
                     .ifPresent(p -> {
@@ -239,25 +239,22 @@ public class PedidoService implements ProcesarPedidoUseCase {
                     })
         );
 
-        // PASO 11: Marcar el carrito como CONVERTIDO para que no reaparezca
+        // PASO 10: marcar carrito como PROCESADO (antes CONVERTIDO)
         carritoRepository.cambiarEstado(
-                carrito.getIdCarrito(), ESTADO_CARRITO_CONVERTIDO);
-        log.debug("Carrito {} → CONVERTIDO", carrito.getIdCarrito());
+                carrito.getIdCarrito(), ESTADO_CARRITO_PROCESADO);
+        log.debug("Carrito {} → PROCESADO", carrito.getIdCarrito());
 
-        // PASO 12: Recargar el pedido completo desde BD con todas sus relaciones
+        // PASO 11: recargar pedido completo
         var pedidoRespuesta = pedidoRepository
                 .buscarPorId(idPedidoGenerado)
                 .orElseThrow(() -> new RuntimeException(
                         "Error recuperando pedido: " + idPedidoGenerado));
 
-        // PASO 13: Enriquecer el pago con nombre del método y estado
         enriquecerPago(pedidoRespuesta);
 
-        // Forzar datos del pago desde memoria (más confiable dentro de la misma transacción)
         if (pedidoRespuesta.getPago() != null) {
             pedidoRespuesta.getPago().setNombreMetodo(nombreMetodoPago);
-            pedidoRespuesta.getPago().setEstadoPagoDescripcion(
-                    ID_METODO_EFECTIVO.equals(idMetodoPago) ? "PENDIENTE" : "APROBADO");
+            pedidoRespuesta.getPago().setEstadoPagoDescripcion("APROBADO");
         }
 
         if (pedidoRespuesta.getEmailCliente() == null) {
@@ -265,10 +262,7 @@ public class PedidoService implements ProcesarPedidoUseCase {
             pedidoRespuesta.setNombreCliente(usuario.getNombreCompleto());
         }
 
-        // PASO 14: Construir el objeto Pedido para el email con datos en memoria
-        String estadoPagoEmail = ID_METODO_EFECTIVO.equals(idMetodoPago)
-                ? "PENDIENTE" : "APROBADO";
-
+        // PASO 12: construir objeto para el email de confirmación
         List<DetallePedido> detallesEmail = carrito.getItems().stream()
                 .map(item -> DetallePedido.builder()
                         .idProducto(item.getIdProducto())
@@ -285,23 +279,25 @@ public class PedidoService implements ProcesarPedidoUseCase {
                 .idPedido(idPedidoGenerado)
                 .numeroPedido(numeroPedido)
                 .estadoDescripcion("PENDIENTE")
-                .fechaPedido(fechaPedido)          // ya es hora Colombia
+                .fechaPedido(fechaPedido)
                 .direccionEnvio(direccionEnvio)
                 .emailCliente(usuario.getCorreo())
                 .nombreCliente(usuario.getNombreCompleto())
                 .detalles(detallesEmail)
+                .subtotal(subtotalPedido)
+                .impuestos(impuestosPedido)
                 .pago(Pago.builder()
                         .idPedido(idPedidoGenerado)
                         .idMetodo(idMetodoPago)
-                        .monto(total)
-                        .fechaPago(pagoEntity.getFechaPago()) // ya es hora Colombia
+                        .monto(totalPedido)
+                        .fechaPago(pagoEntity.getFechaPago())
                         .nombreMetodo(nombreMetodoPago)
-                        .estadoPagoDescripcion(estadoPagoEmail)
+                        .estadoPagoDescripcion("APROBADO")
                         .build())
-                .total(total)
+                .total(totalPedido)
                 .build();
 
-        // PASO 15: Enviar email de confirmación (falla silenciosamente)
+        // PASO 13: enviar email (falla silenciosamente)
         try {
             notificacionPort.enviarConfirmacionPedido(pedidoEmail);
             log.info("✅ Email enviado a: {}", usuario.getCorreo());
@@ -313,7 +309,7 @@ public class PedidoService implements ProcesarPedidoUseCase {
         return pedidoRespuesta;
     }
 
-    // ─────────────────────────────────────────────────────────────────────────
+    // ─────────────────────────────────────────────────────────────────────
     @Override
     public List<Pedido> obtenerHistorial(String email) {
         var usuario = usuarioRepository.buscarPorEmail(email)
@@ -323,13 +319,12 @@ public class PedidoService implements ProcesarPedidoUseCase {
         List<Pedido> pedidos = pedidoRepository
                 .buscarPorUsuario(usuario.getIdUsuario());
 
-        // Enriquecer el método de pago de cada pedido en el historial
         pedidos.forEach(this::enriquecerPago);
 
         return pedidos;
     }
 
-    // ─────────────────────────────────────────────────────────────────────────
+    // ─────────────────────────────────────────────────────────────────────
     @Override
     public Pedido obtenerDetalle(String email, Long idPedido) {
         var usuario = usuarioRepository.buscarPorEmail(email)
@@ -340,13 +335,11 @@ public class PedidoService implements ProcesarPedidoUseCase {
                 .orElseThrow(() -> new RuntimeException(
                         "Pedido no encontrado: " + idPedido));
 
-        // Verificar que el pedido pertenezca al usuario autenticado
         if (!pedido.getIdUsuario().equals(usuario.getIdUsuario())) {
             throw new RuntimeException(
                     "No tienes permisos para ver este pedido");
         }
 
-        // Enriquecer el método de pago cargando directamente desde BD
         enriquecerPago(pedido);
 
         return pedido;

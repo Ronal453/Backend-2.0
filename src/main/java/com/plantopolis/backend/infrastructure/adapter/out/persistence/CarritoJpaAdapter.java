@@ -67,10 +67,8 @@ public class CarritoJpaAdapter implements CarritoRepositoryPort {
         var entity = CarritoEntity.builder()
                 .idUsuario(idUsuario)
                 .idEstadoCarrito(ESTADO_ACTIVO)
-                // ── FIX TIMEZONE ──────────────────────────────────────────
-                // LocalDateTime.now() usa UTC en Docker → hora incorrecta.
-                // LocalDateTime.now(ZONA_BOGOTA) garantiza hora colombiana.
                 .fechaCreacion(LocalDateTime.now(ZONA_BOGOTA))
+                .fechaActualizacion(LocalDateTime.now(ZONA_BOGOTA))
                 .items(new ArrayList<>())
                 .build();
         return mapper.toDomain(carritoRepo.save(entity));
@@ -155,13 +153,14 @@ public class CarritoJpaAdapter implements CarritoRepositoryPort {
      * transacción, garantizando que el carrito quede CONVERTIDO antes de
      * que el cliente reciba la respuesta del checkout.
      */
-    @Override
+   @Override
     @Transactional
     public void cambiarEstado(Long idCarrito, Long idEstado) {
         carritoRepo.findById(idCarrito).ifPresent(c -> {
             c.setIdEstadoCarrito(idEstado);
+            
+            c.setFechaActualizacion(LocalDateTime.now(ZONA_BOGOTA));
 
-            // saveAndFlush: UPDATE inmediato en BD, no espera al final del commit
             carritoRepo.saveAndFlush(c);
 
             log.debug("Carrito {} → estado {} (flush inmediato)", idCarrito, idEstado);
