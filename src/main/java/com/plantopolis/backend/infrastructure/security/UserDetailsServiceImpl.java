@@ -24,15 +24,17 @@ public class UserDetailsServiceImpl implements UserDetailsService {
                 .orElseThrow(() -> new UsernameNotFoundException(
                         "Usuario no encontrado: " + email));
 
-        // Si rolNombre es null, asignar CLIENTE por defecto
         String rol = (usuario.getRolNombre() != null)
                 ? usuario.getRolNombre()
                 : "CLIENTE";
+
+        boolean cuentaActiva = Boolean.TRUE.equals(usuario.getActivo());
 
         return User.builder()
                 .username(usuario.getCorreo())
                 .password(usuario.getContrasenaHash())
                 .authorities(List.of(new SimpleGrantedAuthority("ROLE_" + rol)))
+                .disabled(!cuentaActiva)
                 .build();
     }
 }

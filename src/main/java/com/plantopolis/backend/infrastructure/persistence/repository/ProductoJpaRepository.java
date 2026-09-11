@@ -8,14 +8,10 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
 import java.math.BigDecimal;
+import java.util.List;
 
 public interface ProductoJpaRepository extends JpaRepository<ProductoEntity, Long> {
 
-    // ── Catálogo público (solo activos) ────────────────────────────────────
-    /**
-     * Búsqueda del catálogo con filtros opcionales.
-     * Solo devuelve productos con activo = true.
-     */
     @Query("""
         SELECT p FROM ProductoEntity p
         WHERE p.activo = true
@@ -35,11 +31,6 @@ public interface ProductoJpaRepository extends JpaRepository<ProductoEntity, Lon
             Pageable pageable
     );
 
-     /**
-     * [NUEVO Sprint 5] Búsqueda admin: devuelve TODOS los productos,
-     * incluyendo los desactivados (activo = false).
-     * No tiene filtro de precio porque el admin necesita ver todo.
-     */
     @Query("""
         SELECT p FROM ProductoEntity p
         WHERE (:nombre IS NULL OR 
@@ -54,9 +45,12 @@ public interface ProductoJpaRepository extends JpaRepository<ProductoEntity, Lon
             Pageable pageable
     );
 
-    // ── Métricas para reportes ─────────────────────────────────────────────
-    /**
-     * Cuenta los productos activos para el dashboard.
-     */
     Long countByActivoTrue();
+
+    @Query("""
+        SELECT p FROM ProductoEntity p
+        WHERE p.activo = true AND p.stock <= p.stockMinimoAlerta
+        ORDER BY p.stock ASC
+    """)
+    List<ProductoEntity> buscarConStockCritico();
 }

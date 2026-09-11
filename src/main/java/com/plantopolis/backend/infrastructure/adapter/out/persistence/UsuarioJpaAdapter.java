@@ -5,6 +5,8 @@ import com.plantopolis.backend.domain.port.out.UsuarioRepositoryPort;
 import com.plantopolis.backend.infrastructure.persistence.mapper.UsuarioMapper;
 import com.plantopolis.backend.infrastructure.persistence.repository.UsuarioJpaRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Component;
 
 import java.util.Optional;
@@ -32,5 +34,16 @@ public class UsuarioJpaAdapter implements UsuarioRepositoryPort {
     @Override
     public boolean existePorEmail(String email) {
         return jpaRepository.existsByCorreo(email);
+    }
+
+    @Override
+    public Optional<Usuario> buscarPorId(Long id) {
+        return jpaRepository.findById(id).map(mapper::toDomain);
+    }
+
+    @Override
+    public Page<Usuario> listarTodos(String nombre, Long idRol, Boolean activo, Pageable pageable) {
+        return jpaRepository.buscarConFiltros(nombre, idRol, activo, pageable)
+                .map(mapper::toDomain);
     }
 }

@@ -10,20 +10,11 @@ import java.math.BigDecimal;
 import java.util.List;
 import java.util.Optional;
 
-/**
- * Puerto de salida para el repositorio de productos.
- *
- */
 public interface ProductoRepositoryPort {
 
-   
     Page<Producto> buscarConFiltros(
-            String nombre,
-            Long idCategoria,
-            Long idTipo,
-            BigDecimal precioMin,
-            BigDecimal precioMax,
-            Pageable pageable
+            String nombre, Long idCategoria, Long idTipo,
+            BigDecimal precioMin, BigDecimal precioMax, Pageable pageable
     );
 
     Optional<Producto> buscarPorId(Long id);
@@ -36,18 +27,12 @@ public interface ProductoRepositoryPort {
 
     boolean existePorId(Long id);
 
-   
-    /**
-     * Lista todos los productos (activos + inactivos) para el panel admin.
-     * No aplica filtro de activo = true.
-     */
     Page<Producto> buscarTodosAdmin(
-            String nombre,
-            Long idCategoria,
-            Long idTipo,
-            Pageable pageable
+            String nombre, Long idCategoria, Long idTipo, Pageable pageable
     );
 
-    /** Cuenta los productos activos para el dashboard. */
     Long contarActivos();
+
+    /** Productos activos en o por debajo del umbral de stock configurado. */
+    List<Producto> listarConStockCritico();
 }

@@ -3,6 +3,7 @@ package com.plantopolis.backend.infrastructure.adapter.in.web;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.authentication.BadCredentialsException;
+import org.springframework.security.authentication.DisabledException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
@@ -14,7 +15,6 @@ import java.util.Map;
 @RestControllerAdvice
 public class GlobalExceptionHandler {
 
-    // ── Credenciales incorrectas → 401 ──────────────────────
     @ExceptionHandler(BadCredentialsException.class)
     public ResponseEntity<Map<String, Object>> handleBadCredentials(
             BadCredentialsException ex) {
@@ -23,7 +23,14 @@ public class GlobalExceptionHandler {
                 .body(errorBody("Credenciales incorrectas", 401));
     }
 
-    // ── Email duplicado → 409 Conflict ──────────────────────
+    @ExceptionHandler(DisabledException.class)
+    public ResponseEntity<Map<String, Object>> handleDisabled(
+            DisabledException ex) {
+        return ResponseEntity
+                .status(HttpStatus.FORBIDDEN)
+                .body(errorBody("Esta cuenta fue desactivada. Contacta al administrador.", 403));
+    }
+
     @ExceptionHandler(RuntimeException.class)
     public ResponseEntity<Map<String, Object>> handleRuntime(
             RuntimeException ex) {
@@ -32,7 +39,6 @@ public class GlobalExceptionHandler {
                 .body(errorBody(ex.getMessage(), 409));
     }
 
-    // ── Validaciones → 400 Bad Request ──────────────────────
     @ExceptionHandler(MethodArgumentNotValidException.class)
     public ResponseEntity<Map<String, Object>> handleValidation(
             MethodArgumentNotValidException ex) {

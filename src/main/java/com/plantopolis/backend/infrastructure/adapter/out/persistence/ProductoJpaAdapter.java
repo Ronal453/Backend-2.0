@@ -31,8 +31,7 @@ public class ProductoJpaAdapter implements ProductoRepositoryPort {
             String nombre, Long idCategoria, Long idTipo,
             BigDecimal precioMin, BigDecimal precioMax, Pageable pageable) {
         return productoRepo
-                .buscarConFiltros(nombre, idCategoria, idTipo,
-                                  precioMin, precioMax, pageable)
+                .buscarConFiltros(nombre, idCategoria, idTipo, precioMin, precioMax, pageable)
                 .map(mapper::toDomain);
     }
 
@@ -44,19 +43,14 @@ public class ProductoJpaAdapter implements ProductoRepositoryPort {
     @Override
     public List<Categoria> listarCategorias() {
         return categoriaRepo.findDistinctByNombreCategoria()
-                .stream()
-                .map(mapper::categoriaToDomain)
-                .toList();
+                .stream().map(mapper::categoriaToDomain).toList();
     }
 
     @Override
     public List<TipoProducto> listarTipos() {
-        return tipoRepo.findAll()
-                .stream()
+        return tipoRepo.findAll().stream()
                 .map(t -> TipoProducto.builder()
-                        .idTipo(t.getIdTipo())
-                        .nombreTipo(t.getNombreTipo())
-                        .build())
+                        .idTipo(t.getIdTipo()).nombreTipo(t.getNombreTipo()).build())
                 .toList();
     }
 
@@ -71,10 +65,6 @@ public class ProductoJpaAdapter implements ProductoRepositoryPort {
         return productoRepo.existsById(id);
     }
 
-    /**
-     * Lista todos los productos (activos + inactivos) para el admin.
-     * Usa buscarTodosAdmin() que NO filtra por activo = true.
-     */
     @Override
     public Page<Producto> buscarTodosAdmin(
             String nombre, Long idCategoria, Long idTipo, Pageable pageable) {
@@ -83,11 +73,14 @@ public class ProductoJpaAdapter implements ProductoRepositoryPort {
                 .map(mapper::toDomain);
     }
 
-    /**
-     * Cuenta los productos activos para el dashboard de reportes.
-     */
     @Override
     public Long contarActivos() {
         return productoRepo.countByActivoTrue();
+    }
+
+    @Override
+    public List<Producto> listarConStockCritico() {
+        return productoRepo.buscarConStockCritico()
+                .stream().map(mapper::toDomain).toList();
     }
 }

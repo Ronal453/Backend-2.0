@@ -7,20 +7,12 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 
-/**
- * Repositorio JPA para PedidoEntity.
- *
- *   - findAllAdminWithFilters(): lista todos los pedidos con filtro de estado
- *   - countTotal(): conteo total para dashboard
- *   - countPorEstado(): distribución por estado para el gráfico
- *
- */
 public interface PedidoJpaRepository extends JpaRepository<PedidoEntity, Long> {
 
-    /** Busca un pedido por ID con todas sus relaciones cargadas. */
     @Query("""
         SELECT DISTINCT p FROM PedidoEntity p
         JOIN FETCH p.estado
@@ -32,10 +24,8 @@ public interface PedidoJpaRepository extends JpaRepository<PedidoEntity, Long> {
         LEFT JOIN FETCH pago.estadoPago
         WHERE p.idPedido = :idPedido
     """)
-    Optional<PedidoEntity> findByIdWithRelations(
-            @Param("idPedido") Long idPedido);
+    Optional<PedidoEntity> findByIdWithRelations(@Param("idPedido") Long idPedido);
 
-    /** Busca todos los pedidos de un usuario con relaciones. */
     @Query("""
         SELECT DISTINCT p FROM PedidoEntity p
         JOIN FETCH p.estado
@@ -48,19 +38,8 @@ public interface PedidoJpaRepository extends JpaRepository<PedidoEntity, Long> {
         WHERE p.idUsuario = :idUsuario
         ORDER BY p.fechaPedido DESC
     """)
-    List<PedidoEntity> findByIdUsuarioWithRelations(
-            @Param("idUsuario") Long idUsuario);
+    List<PedidoEntity> findByIdUsuarioWithRelations(@Param("idUsuario") Long idUsuario);
 
-    
-    /**
-     * Lista todos los pedidos del sistema con filtro opcional por estado.
-     * Incluye JOIN FETCH de relaciones para evitar N+1 queries.
-     *
-     * countQuery separado: necesario cuando se usa JOIN FETCH + Pageable
-     * en Spring Data JPA para que la paginación funcione correctamente.
-     *
-     * @param estado descripción del estado (ej: "PENDIENTE") o null para todos
-     */
     @Query(
         value = """
             SELECT DISTINCT p FROM PedidoEntity p
@@ -80,27 +59,31 @@ public interface PedidoJpaRepository extends JpaRepository<PedidoEntity, Long> {
             WHERE (:estado IS NULL OR p.estado.descripcionEstado = :estado)
         """
     )
-    Page<PedidoEntity> findAllAdminWithFilters(
-            @Param("estado") String estado,
-            Pageable pageable
-    );
+    Page<PedidoEntity> findAllAdminWithFilters(@Param("estado") String estado, Pageable pageable);
 
-    
-    /**
-     * Distribución de pedidos por estado para el gráfico del dashboard.
-     * Devuelve List<Object[]> donde cada elemento es [descripcionEstado, count].
-     */
     @Query("""
         SELECT e.descripcionEstado, COUNT(p)
-        FROM PedidoEntity p
-        JOIN p.estado e
+        FROM PedidoEntity p JOIN p.estado e
         GROUP BY e.descripcionEstado
     """)
     List<Object[]> countPorEstado();
 
-    /** Verifica si ya existe un pedido con el número dado (para generación única). */
     boolean existsByNumeroPedido(String numeroPedido);
 
-    /** Busca pedidos por usuario sin JOIN FETCH (versión simple). */
     List<PedidoEntity> findByIdUsuarioOrderByFechaPedidoDesc(Long idUsuario);
+
+    /** Pedidos por rango de fecha, para exportación CSV (LEFT JOIN FETCH detalles evita LazyInit). */
+    @Query("""
+        SELECT DISTINCT p FROM PedidoEntity p
+        JOIN FETCH p.estado
+        JOIN FETCH p.usuario
+        LEFT JOIN FETCH p.detalles d
+        WHERE (:fechaInicio IS NULL OR p.fechaPedido >= :fechaInicio)
+          AND (:fechaFin IS NULL OR p.fechaPedido <= :fechaFin)
+        ORDER BY p.fechaPedido DESC
+    """)
+    List<PedidoEntity> buscarPorRangoFecha(
+            @Param("fechaInicio") LocalDateTime fechaInicio,
+            @Param("fechaFin") LocalDateTime fechaFin
+    );
 }
