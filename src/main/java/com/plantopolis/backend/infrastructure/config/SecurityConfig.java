@@ -99,6 +99,12 @@ public class SecurityConfig {
                 // Panel admin → requiere JWT + rol ADMINISTRADOR específicamente
                 .requestMatchers("/api/admin/**").hasRole("ADMINISTRADOR")
 
+                // Rutas operativas del trabajador → accesibles por TRABAJADOR y ADMINISTRADOR
+                .requestMatchers("/api/tareas/**").hasAnyRole("TRABAJADOR", "ADMINISTRADOR")
+                .requestMatchers("/api/lotes/**").hasAnyRole("TRABAJADOR", "ADMINISTRADOR")
+                .requestMatchers("/api/mermas/**").hasAnyRole("TRABAJADOR", "ADMINISTRADOR")
+                .requestMatchers("/api/zonas/**").hasAnyRole("TRABAJADOR", "ADMINISTRADOR")
+
                 // Cualquier otra ruta no listada → requiere JWT por defecto
                 .anyRequest().authenticated()
             )
