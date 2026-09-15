@@ -1,17 +1,23 @@
 package com.plantopolis.backend.infrastructure.adapter.in.web;
 
 import com.plantopolis.backend.domain.port.in.GestionarUsuariosAdminUseCase;
+import com.plantopolis.backend.infrastructure.adapter.in.web.dto.CrearTrabajadorRequest;
 import com.plantopolis.backend.infrastructure.adapter.in.web.dto.ResetPasswordResponse;
 import com.plantopolis.backend.infrastructure.adapter.in.web.dto.UsuarioAdminResponse;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.media.Content;
+import io.swagger.v3.oas.annotations.media.ExampleObject;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
@@ -21,8 +27,8 @@ import org.springframework.web.bind.annotation.*;
 @RequiredArgsConstructor
 @Tag(
     name = "Admin — Usuarios",
-    description = "Gestión de cuentas de usuario: listar, activar/desactivar y resetear " +
-                  "contraseñas. 🔒 Requiere token JWT + rol ADMINISTRADOR."
+    description = "Gestión de cuentas de usuario: listar, crear trabajadores, activar/desactivar " +
+                  "y resetear contraseñas. 🔒 Requiere token JWT + rol ADMINISTRADOR."
 )
 @SecurityRequirement(name = "Bearer Authentication")
 public class AdminUsuarioController {
@@ -52,6 +58,51 @@ public class AdminUsuarioController {
                 .listarUsuarios(nombre, idRol, activo, pageable)
                 .map(UsuarioAdminResponse::from);
         return ResponseEntity.ok(resultado);
+    }
+
+    // ── NUEVO ────────────────────────────────────────────────────────────
+    @Operation(
+        summary = "Crear cuenta de trabajador",
+        description = "Crea una nueva cuenta con rol TRABAJADOR, asignando nombre, correo " +
+                      "y una contraseña inicial. Solo puede usarse desde el panel ADMINISTRADOR. " +
+                      "El trabajador queda activo de inmediato y puede iniciar sesión con la " +
+                      "contraseña indicada."
+    )
+    @ApiResponses({
+        @ApiResponse(
+            responseCode = "201",
+            description = "Trabajador creado correctamente",
+            content = @Content(examples = @ExampleObject(value = """
+                {
+                  "idUsuario": 12,
+                  "nombreCompleto": "Carlos Gómez",
+                  "correo": "carlos.gomez@plantopolis.com",
+                  "telefono": null,
+                  "direccion": null,
+                  "rol": "TRABAJADOR",
+                  "activo": true,
+                  "fechaRegistro": "2026-09-14T10:30:00"
+                }
+                """))
+        ),
+        @ApiResponse(responseCode = "409", description = "El correo ya está registrado"),
+        @ApiResponse(responseCode = "400", description = "Datos inválidos"),
+        @ApiResponse(responseCode = "403", description = "No es administrador")
+    })
+    @PostMapping("/trabajadores")
+    @PreAuthorize("hasRole('ADMINISTRADOR')")
+    public ResponseEntity<UsuarioAdminResponse> crearTrabajador(
+            @Valid @RequestBody CrearTrabajadorRequest request) {
+
+        var trabajador = usuariosUseCase.crearTrabajador(
+                request.nombreCompleto(),
+                request.correo(),
+                request.passwordInicial()
+        );
+
+        return ResponseEntity
+                .status(HttpStatus.CREATED)
+                .body(UsuarioAdminResponse.from(trabajador));
     }
 
     @Operation(

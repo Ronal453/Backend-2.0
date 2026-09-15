@@ -6,27 +6,23 @@ import org.springframework.data.domain.Pageable;
 
 public interface GestionarUsuariosAdminUseCase {
 
-    /**
-     * Lista usuarios con filtros opcionales.
-     *
-     * @param nombre filtro parcial por nombre o correo (puede ser null)
-     * @param idRol  filtro por rol (1=ADMINISTRADOR, 2=TRABAJADOR, 3=CLIENTE; puede ser null)
-     * @param activo filtro por estado de la cuenta (puede ser null = todos)
-     */
     Page<Usuario> listarUsuarios(String nombre, Long idRol, Boolean activo, Pageable pageable);
 
-    /** Reactiva el acceso de un usuario previamente desactivado. */
     Usuario activar(Long idUsuario);
 
-    /** Revoca el acceso de un usuario. No borra su historial (pedidos, tareas, etc). */
     Usuario desactivar(Long idUsuario);
 
-    /**
-     * Genera una contraseña temporal aleatoria, la hashea y la persiste
-     * reemplazando la anterior.
-     *
-     * @return la contraseña en texto plano, para que el admin la comunique
-     *         una única vez al usuario de forma segura (no se vuelve a mostrar).
-     */
     String resetearPassword(Long idUsuario);
+
+    /**
+     * Crea una nueva cuenta con rol TRABAJADOR. Solo puede ser invocado
+     * por un usuario con rol ADMINISTRADOR (se valida en el controller
+     * vía @PreAuthorize).
+     *
+     * @param nombreCompleto  nombre completo del trabajador
+     * @param correo          correo único, será su usuario de login
+     * @param passwordInicial contraseña inicial en texto plano (se hashea antes de guardar)
+     * @throws RuntimeException si el correo ya está registrado
+     */
+    Usuario crearTrabajador(String nombreCompleto, String correo, String passwordInicial);
 }
