@@ -8,4 +8,8 @@ import java.util.Optional;
 public interface ZonaRepositoryPort {
     List<Zona> listarActivas();
     Optional<Zona> buscarPorId(Long idZona);
+    List<Zona> listarTodas();
+    Zona guardar(Zona zona);
+    boolean existePorNombre(String nombre);
+    boolean existePorNombreYDistintoId(String nombre, Long idZona);
 }

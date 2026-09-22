@@ -9,4 +9,7 @@ import java.util.List;
 @Repository
 public interface ZonaJpaRepository extends JpaRepository<ZonaEntity, Long> {
     List<ZonaEntity> findByActivoTrueOrderByNombreAsc();
+    List<ZonaEntity> findAllByOrderByNombreAsc();
+    boolean existsByNombreIgnoreCase(String nombre);
+    boolean existsByNombreIgnoreCaseAndIdZonaNot(String nombre, Long idZona);
 }

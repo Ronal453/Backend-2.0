@@ -6,4 +6,6 @@ import java.util.List;
 
 public interface ObtenerZonasUseCase {
     List<Zona> listarZonasActivas();
+    List<Zona> listarTodasLasZonas();
+    List<Zona> obtenerResumenOcupacion();
 }

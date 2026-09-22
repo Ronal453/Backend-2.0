@@ -22,4 +22,16 @@ public interface LoteJpaRepository extends JpaRepository<LoteProduccionEntity, L
             @Param("estadoLote") String estadoLote,
             Pageable pageable
     );
+    
+    long countByIdZonaAndEstadoLoteNot(Long idZona, String estadoLote);
+    
+    java.util.List<LoteProduccionEntity> findByIdZonaAndEstadoLoteNotOrderByFechaSiembraDesc(Long idZona, String estadoLote);
+
+    @Query("""
+        SELECT COALESCE(SUM(l.cantidadActual), 0)
+        FROM LoteProduccionEntity l
+        WHERE l.idZona = :idZona
+          AND UPPER(l.estadoLote) <> 'DESCARTADO'
+    """)
+    long sumarPlantasActivasPorZona(@Param("idZona") Long idZona);
 }

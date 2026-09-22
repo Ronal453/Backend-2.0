@@ -29,4 +29,27 @@ public class ZonaJpaAdapter implements ZonaRepositoryPort {
     public Optional<Zona> buscarPorId(Long idZona) {
         return zonaRepo.findById(idZona).map(mapper::toDomain);
     }
+
+    @Override
+    public List<Zona> listarTodas() {
+        return zonaRepo.findAllByOrderByNombreAsc()
+                .stream()
+                .map(mapper::toDomain)
+                .toList();
+    }
+
+    @Override
+    public Zona guardar(Zona zona) {
+        return mapper.toDomain(zonaRepo.save(mapper.toEntity(zona)));
+    }
+
+    @Override
+    public boolean existePorNombre(String nombre) {
+        return zonaRepo.existsByNombreIgnoreCase(nombre);
+    }
+
+    @Override
+    public boolean existePorNombreYDistintoId(String nombre, Long idZona) {
+        return zonaRepo.existsByNombreIgnoreCaseAndIdZonaNot(nombre, idZona);
+    }
 }

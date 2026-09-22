@@ -59,4 +59,22 @@ public class LoteJpaAdapter implements LoteRepositoryPort, HistorialEstadoLoteRe
                 .map(mapper::toDomainHistorial)
                 .toList();
     }
+
+    @Override
+    public long contarLotesActivosPorZona(Long idZona) {
+        return loteRepo.countByIdZonaAndEstadoLoteNot(idZona, "DESCARTADO");
+    }
+
+    @Override
+    public long contarPlantasActivasPorZona(Long idZona) {
+        return loteRepo.sumarPlantasActivasPorZona(idZona);
+    }
+
+    @Override
+    public List<LoteProduccion> buscarLotesActivosPorZona(Long idZona) {
+        return loteRepo.findByIdZonaAndEstadoLoteNotOrderByFechaSiembraDesc(idZona, "DESCARTADO")
+                .stream()
+                .map(mapper::toDomain)
+                .toList();
+    }
 }
