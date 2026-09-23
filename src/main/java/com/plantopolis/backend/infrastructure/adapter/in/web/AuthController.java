@@ -125,6 +125,15 @@ public class AuthController {
     public ResponseEntity<AuthResponse> login(
             @Valid @RequestBody LoginRequest request) {
 
+        // ── HONEYPOT: trampa anti-bot ────────────────────────────────────
+        // El campo "website" es invisible para usuarios reales (hidden en el form).
+        // Si llega con valor, un bot llenó el formulario → rechazar silenciosamente
+        // con un 401 genérico sin tocar la BD ni el AuthenticationManager.
+        if (request.website() != null && !request.website().isBlank()) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                    .body(new AuthResponse(null, null, null, "Credenciales incorrectas"));
+        }
+
         // PASO 1: Autenticar y generar el JWT
         // loginUseCase.login() verifica la contraseña con BCrypt y genera
         // un token con el claim "rol" (ej: "ADMINISTRADOR") dentro del payload

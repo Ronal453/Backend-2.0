@@ -5,5 +5,6 @@ import jakarta.validation.constraints.NotBlank;
 
 public record LoginRequest(
     @NotBlank @Email String email,
-    @NotBlank String password
+    @NotBlank String password,
+    String website   // campo honeypot: si llega con valor, es un bot
 ) {}
