@@ -15,7 +15,9 @@ import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseCookie;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.web.bind.annotation.*;
@@ -145,14 +147,36 @@ public class AuthController {
         // no podía detectar el rol ADMINISTRADOR → el panel admin no aparecía.
         String rol = jwtUtil.extraerRol(token);
 
-        // PASO 3: Devolver la respuesta completa con el rol real
-        // El frontend guarda { email, rol } en AuthContext y localStorage,
-        // y Navbar usa user.rol === 'ADMINISTRADOR' para mostrar el panel
-        return ResponseEntity.ok(new AuthResponse(
-                token,
-                request.email(),
-                rol,            // ← antes era null, ahora es "ADMINISTRADOR" o "CLIENTE"
-                "Login exitoso"
-        ));
+        ResponseCookie jwtCookie = ResponseCookie.from("jwt_token", token)
+                .httpOnly(true)
+                .secure(false) // Debería ser true en producción con HTTPS
+                .path("/")
+                .maxAge(24 * 60 * 60) // 24 horas
+                .sameSite("Lax")
+                .build();
+
+        return ResponseEntity.ok()
+                .header(HttpHeaders.SET_COOKIE, jwtCookie.toString())
+                .body(new AuthResponse(
+                        null, // Ya no enviamos el token en el body por seguridad
+                        request.email(),
+                        rol,
+                        "Login exitoso"
+                ));
+    }
+
+    @PostMapping("/logout")
+    public ResponseEntity<Void> logout() {
+        ResponseCookie clearCookie = ResponseCookie.from("jwt_token", "")
+                .httpOnly(true)
+                .secure(false)
+                .path("/")
+                .maxAge(0) // Borra la cookie
+                .sameSite("Lax")
+                .build();
+
+        return ResponseEntity.ok()
+                .header(HttpHeaders.SET_COOKIE, clearCookie.toString())
+                .build();
     }
 }
