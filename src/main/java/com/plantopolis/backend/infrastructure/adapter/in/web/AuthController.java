@@ -1,8 +1,10 @@
 package com.plantopolis.backend.infrastructure.adapter.in.web;
 
+import com.plantopolis.backend.domain.port.in.LoginGoogleUseCase;
 import com.plantopolis.backend.domain.port.in.LoginUseCase;
 import com.plantopolis.backend.domain.port.in.RegistrarUsuarioUseCase;
 import com.plantopolis.backend.infrastructure.adapter.in.web.dto.AuthResponse;
+import com.plantopolis.backend.infrastructure.adapter.in.web.dto.GoogleLoginRequest;
 import com.plantopolis.backend.infrastructure.adapter.in.web.dto.LoginRequest;
 import com.plantopolis.backend.infrastructure.adapter.in.web.dto.RegistroRequest;
 import com.plantopolis.backend.infrastructure.security.JwtUtil;
@@ -35,6 +37,7 @@ public class AuthController {
 
     private final RegistrarUsuarioUseCase registrarUseCase;
     private final LoginUseCase            loginUseCase;
+    private final LoginGoogleUseCase      loginGoogleUseCase;
     private final PasswordEncoder         passwordEncoder;
 
     //  Inyectamos JwtUtil para extraer el rol del token
@@ -162,6 +165,33 @@ public class AuthController {
                         request.email(),
                         rol,
                         "Login exitoso"
+                ));
+    }
+
+    // ── LOGIN GOOGLE ──────────────────────────────────────────────────────
+    @Operation(
+        summary = "Iniciar sesión / registrarse con Google",
+        description = "Recibe el ID Token emitido por Google, lo valida, registra o autentica al usuario y establece la cookie de sesión JWT."
+    )
+    @PostMapping("/google")
+    public ResponseEntity<AuthResponse> googleLogin(@Valid @RequestBody GoogleLoginRequest request) {
+        var result = loginGoogleUseCase.loginConGoogle(request.idToken());
+
+        ResponseCookie jwtCookie = ResponseCookie.from("jwt_token", result.token())
+                .httpOnly(true)
+                .secure(false) // Debería ser true en producción con HTTPS
+                .path("/")
+                .maxAge(24 * 60 * 60) // 24 horas
+                .sameSite("Lax")
+                .build();
+
+        return ResponseEntity.ok()
+                .header(HttpHeaders.SET_COOKIE, jwtCookie.toString())
+                .body(new AuthResponse(
+                        null,
+                        result.email(),
+                        result.rol(),
+                        "Autenticación con Google exitosa"
                 ));
     }
 

@@ -28,6 +28,10 @@ jwt:
   secret: ${JWT_SECRET:plantopolisJwtSecretKey2024MuyLargaMinimo256BitsParaHMACSHA}
   expiration: 86400000
 
+# ── Google OAuth2 ─────────────────────────────────────
+google:
+  client-id: ${GOOGLE_CLIENT_ID:606774857655-65m1s4blts0ej9bvftgu7th1ujid373f.apps.googleusercontent.com}
+
 # ── Resend (email transaccional vía HTTP) ─────────────────
 # CAMBIO: reemplaza la antigua sección spring.mail (SMTP), porque la
 # red bloquea los puertos 25/465/587. Resend usa HTTPS (puerto 443).
