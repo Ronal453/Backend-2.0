@@ -12,7 +12,11 @@ public record RegistroRequest(
     @NotBlank @Email(message = "Email inválido")
     String email,
 
-    @NotBlank @Size(min = 6, message = "La contraseña debe tener al menos 6 caracteres")
+    @NotBlank 
+    @jakarta.validation.constraints.Pattern(
+        regexp = "^(?=.*[A-Z])(?=.*\\d)(?=.*[@$!%*?&])[A-Za-z\\d@$!%*?&]{8,}$", 
+        message = "La contraseña debe tener mínimo 8 caracteres, al menos una mayúscula, un número y un carácter especial"
+    )
     String password,
 
     // Opcionales — no llevan @NotBlank

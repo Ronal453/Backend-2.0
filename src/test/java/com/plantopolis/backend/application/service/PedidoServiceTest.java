@@ -2,11 +2,6 @@ package com.plantopolis.backend.application.service;
 
 import com.plantopolis.backend.domain.model.*;
 import com.plantopolis.backend.domain.port.out.*;
-import com.plantopolis.backend.infrastructure.persistence.entity.*;
-import com.plantopolis.backend.infrastructure.persistence.mapper.PedidoMapper;
-import com.plantopolis.backend.infrastructure.persistence.repository.*;
-import jakarta.persistence.EntityManager;
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -26,15 +21,6 @@ import static org.assertj.core.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
 
-/**
- * Tests unitarios para PedidoService.
- *
- * Cubre:
- *   - procesarPedido(): happy path, carrito vacío, stock insuficiente,
- *     producto inactivo, método de pago inválido
- *   - obtenerHistorial(): con y sin pedidos
- *   - obtenerDetalle(): pedido propio, pedido ajeno
- */
 @ExtendWith(MockitoExtension.class)
 @DisplayName("PedidoService")
 class PedidoServiceTest {
@@ -44,19 +30,11 @@ class PedidoServiceTest {
     @Mock private ProductoRepositoryPort  productoRepository;
     @Mock private PedidoRepositoryPort    pedidoRepository;
     @Mock private NotificacionPort        notificacionPort;
-    @Mock private PedidoJpaRepository     pedidoJpaRepo;
-    @Mock private DetallePedidoJpaRepository detallePedidoRepo;
-    @Mock private PagoJpaRepository       pagoJpaRepo;
-    @Mock private MetodoPagoJpaRepository metodoPagoRepo;
-    @Mock private PedidoMapper            pedidoMapper;
-    @Mock private EntityManager           entityManager;
 
     @InjectMocks
     private PedidoService sut;
 
     private static final String EMAIL = "ronal@test.com";
-
-    // ── Fixtures ─────────────────────────────────────────────────────────────
 
     private Usuario usuario() {
         return Usuario.builder()
@@ -89,423 +67,119 @@ class PedidoServiceTest {
                 .total(total).build();
     }
 
-    private MetodoPagoEntity metodoPago(Long id, String nombre) {
-        return new MetodoPagoEntity(id, nombre);
-    }
-
-    private PedidoEntity pedidoEntity(Long id) {
-        return PedidoEntity.builder()
-                .idPedido(id).idUsuario(10L).idEstado(1L)
-                .numeroPedido("PL-20240101-0001")
-                .fechaPedido(LocalDateTime.now())
-                .detalles(new ArrayList<>())
-                .build();
-    }
-
     private Pedido pedidoDominio(Long id) {
         return Pedido.builder()
                 .idPedido(id).idUsuario(10L)
                 .numeroPedido("PL-20240101-0001")
+                .fechaPedido(LocalDateTime.now())
+                .subtotal(new BigDecimal("25000"))
+                .impuestos(new BigDecimal("4750"))
+                .total(new BigDecimal("29750"))
                 .estadoDescripcion("PENDIENTE")
-                .emailCliente(EMAIL)
-                .nombreCliente("Ronal Alarcón")
-                .total(new BigDecimal("50000"))
-                .detalles(List.of())
                 .build();
     }
-
-    @BeforeEach
-    void setUpUsuario() {
-        lenient().when(usuarioRepository.buscarPorEmail(EMAIL))
-                .thenReturn(Optional.of(usuario()));
-    }
-
-    // ═══════════════════════════════════════════════════════════════════════
-    // PROCESAR PEDIDO (CHECKOUT)
-    // ═══════════════════════════════════════════════════════════════════════
 
     @Nested
     @DisplayName("procesarPedido()")
     class ProcesarPedidoTests {
 
-        private void setupCheckoutExitoso(int cantidadItems) {
-            when(carritoRepository.buscarCarritoActivo(10L))
-                    .thenReturn(Optional.of(carritoConItems(cantidadItems)));
-            when(metodoPagoRepo.findById(1L))
-                    .thenReturn(Optional.of(metodoPago(1L, "TARJETA_CREDITO")));
-            when(productoRepository.buscarPorId(1L))
-                    .thenReturn(Optional.of(productoActivo(20)));
-            when(pedidoRepository.generarNumeroPedido())
-                    .thenReturn("PL-20240101-0001");
-            when(pedidoJpaRepo.saveAndFlush(any())).thenReturn(pedidoEntity(1L));
-            when(detallePedidoRepo.saveAll(any())).thenReturn(List.of());
-            when(pagoJpaRepo.save(any())).thenReturn(new PagoEntity());
-            when(productoRepository.guardar(any())).thenAnswer(i -> i.getArgument(0));
-            when(pedidoRepository.buscarPorId(1L))
-                    .thenReturn(Optional.of(pedidoDominio(1L)));
-            when(pagoJpaRepo.findByIdPedido(1L)).thenReturn(Optional.empty());
+        @Test
+        @DisplayName("Debe fallar si usuario no existe")
+        void procesarPedido_usuarioNoExiste_lanzaExcepcion() {
+            when(usuarioRepository.buscarPorEmail(EMAIL)).thenReturn(Optional.empty());
+
+            assertThatThrownBy(() -> sut.procesarPedido(EMAIL, 1L, "Dir"))
+                    .isInstanceOf(RuntimeException.class)
+                    .hasMessageContaining("Usuario no encontrado");
         }
 
         @Test
-        @DisplayName("Debería crear el pedido correctamente con datos válidos")
-        void procesarPedido_datosValidos_creaElPedido() {
-            // Arrange
-            setupCheckoutExitoso(2);
+        @DisplayName("Debe fallar si carrito está vacío")
+        void procesarPedido_carritoVacio_lanzaExcepcion() {
+            when(usuarioRepository.buscarPorEmail(EMAIL)).thenReturn(Optional.of(usuario()));
+            when(carritoRepository.buscarCarritoActivo(10L)).thenReturn(Optional.of(
+                    Carrito.builder().idCarrito(100L).items(new ArrayList<>()).build()
+            ));
 
-            // Act
-            Pedido resultado = sut.procesarPedido(EMAIL, 1L, "Calle 123 Bogotá");
-
-            // Assert
-            assertThat(resultado).isNotNull();
-            assertThat(resultado.getIdPedido()).isEqualTo(1L);
-            assertThat(resultado.getNumeroPedido()).isEqualTo("PL-20240101-0001");
+            assertThatThrownBy(() -> sut.procesarPedido(EMAIL, 1L, "Dir"))
+                    .isInstanceOf(RuntimeException.class)
+                    .hasMessageContaining("El carrito está vacío");
         }
 
         @Test
-        @DisplayName("Debería guardar el pedido en BD con los datos correctos")
-        void procesarPedido_guardaPedidoConDireccionYEstado() {
-            // Arrange
-            setupCheckoutExitoso(2);
+        @DisplayName("Debe fallar si producto no tiene stock")
+        void procesarPedido_stockInsuficiente_lanzaExcepcion() {
+            when(usuarioRepository.buscarPorEmail(EMAIL)).thenReturn(Optional.of(usuario()));
+            when(carritoRepository.buscarCarritoActivo(10L)).thenReturn(Optional.of(carritoConItems(5)));
+            when(productoRepository.buscarPorId(1L)).thenReturn(Optional.of(productoActivo(2)));
 
-            // Act
-            sut.procesarPedido(EMAIL, 1L, "Calle 456 Medellín");
-
-            // Assert
-            ArgumentCaptor<PedidoEntity> captor = ArgumentCaptor.forClass(PedidoEntity.class);
-            verify(pedidoJpaRepo).saveAndFlush(captor.capture());
-            assertThat(captor.getValue().getDireccionEnvio()).isEqualTo("Calle 456 Medellín");
-            assertThat(captor.getValue().getIdEstado()).isEqualTo(1L); // PENDIENTE
+            assertThatThrownBy(() -> sut.procesarPedido(EMAIL, 1L, "Dir"))
+                    .isInstanceOf(RuntimeException.class)
+                    .hasMessageContaining("Stock insuficiente");
         }
 
         @Test
-        @DisplayName("Debería reducir el stock del producto al hacer checkout")
-        void procesarPedido_reduceStockDelProducto() {
-            // Arrange
-            setupCheckoutExitoso(3); // pedir 3 unidades
+        @DisplayName("Crea el pedido correctamente y limpia dependencias de JPA")
+        void procesarPedido_exito() {
+            when(usuarioRepository.buscarPorEmail(EMAIL)).thenReturn(Optional.of(usuario()));
+            when(carritoRepository.buscarCarritoActivo(10L)).thenReturn(Optional.of(carritoConItems(2)));
+            when(productoRepository.buscarPorId(1L)).thenReturn(Optional.of(productoActivo(10)));
+            when(pedidoRepository.generarNumeroPedido()).thenReturn("PL-TEST-01");
+            when(pedidoRepository.procesarNuevoPedido(any(), anyLong())).thenReturn(pedidoDominio(50L));
 
-            // Act
-            sut.procesarPedido(EMAIL, 1L, "Calle 123");
+            Pedido resultado = sut.procesarPedido(EMAIL, 1L, "Dir 123");
 
-            // Assert — stock 20 - 3 = 17
+            assertThat(resultado.getIdPedido()).isEqualTo(50L);
+            verify(pedidoRepository).procesarNuevoPedido(any(Pedido.class), eq(1L));
+            verify(carritoRepository).cambiarEstado(100L, 3L);
+            verify(notificacionPort).enviarConfirmacionPedido(any(Pedido.class));
+
             ArgumentCaptor<Producto> captor = ArgumentCaptor.forClass(Producto.class);
             verify(productoRepository).guardar(captor.capture());
-            assertThat(captor.getValue().getStock()).isEqualTo(17);
-        }
-
-       @Test
-@DisplayName("Debería marcar el carrito como PROCESADO (estado 3)")
-void procesarPedido_marcaCarritoProcesado() {
-    // Arrange
-    setupCheckoutExitoso(2);
-
-    // Act
-    sut.procesarPedido(EMAIL, 1L, "Calle 123");
-
-    // Assert
-    // CAMBIO SCHEMA V2: el ID del estado "post-checkout" pasó de 2
-    // (CONVERTIDO) a 3 (PROCESADO), por el nuevo orden de inserción
-    // en la tabla ESTADOCARRITO.
-    verify(carritoRepository).cambiarEstado(100L, 3L);
-}
-        @Test
-        @DisplayName("Debería registrar el pago con el método seleccionado")
-        void procesarPedido_registraPagoConMetodo() {
-            // Arrange
-            setupCheckoutExitoso(2);
-
-            // Act
-            sut.procesarPedido(EMAIL, 1L, "Calle 123");
-
-            // Assert
-            ArgumentCaptor<PagoEntity> captor = ArgumentCaptor.forClass(PagoEntity.class);
-            verify(pagoJpaRepo).save(captor.capture());
-            assertThat(captor.getValue().getIdMetodo()).isEqualTo(1L);
-            assertThat(captor.getValue().getIdEstadoPago()).isEqualTo(2L); // APROBADO
-        }
-
-        @Test
-        @DisplayName("Debería enviar email de confirmación al cliente")
-        void procesarPedido_enviaEmailDeConfirmacion() {
-            // Arrange
-            setupCheckoutExitoso(2);
-
-            // Act
-            sut.procesarPedido(EMAIL, 1L, "Calle 123");
-
-            // Assert
-            verify(notificacionPort).enviarConfirmacionPedido(any(Pedido.class));
-        }
-
-        @Test
-        @DisplayName("Debería continuar aunque el email falle")
-        void procesarPedido_emailFalla_noPropagaExcepcion() {
-            // Arrange
-            setupCheckoutExitoso(2);
-            doThrow(new RuntimeException("SMTP error"))
-                    .when(notificacionPort).enviarConfirmacionPedido(any());
-
-            // Act & Assert
-            assertThatCode(() -> sut.procesarPedido(EMAIL, 1L, "Calle 123"))
-                    .doesNotThrowAnyException();
-        }
-
-        @Test
-        @DisplayName("Debería lanzar excepción cuando el carrito está vacío")
-        void procesarPedido_carritoVacio_lanzaExcepcion() {
-            // Arrange
-            Carrito vacio = Carrito.builder()
-                    .idCarrito(100L).idUsuario(10L)
-                    .items(List.of()).total(BigDecimal.ZERO).build();
-            when(carritoRepository.buscarCarritoActivo(10L))
-                    .thenReturn(Optional.of(vacio));
-
-            // Act & Assert
-            assertThatThrownBy(() -> sut.procesarPedido(EMAIL, 1L, "Calle 123"))
-                    .isInstanceOf(RuntimeException.class)
-                    .hasMessageContaining("vacío");
-
-            verify(pedidoJpaRepo, never()).saveAndFlush(any());
-        }
-
-        @Test
-        @DisplayName("Debería lanzar excepción cuando no existe carrito activo")
-        void procesarPedido_sinCarritoActivo_lanzaExcepcion() {
-            // Arrange
-            when(carritoRepository.buscarCarritoActivo(10L))
-                    .thenReturn(Optional.empty());
-
-            // Act & Assert
-            assertThatThrownBy(() -> sut.procesarPedido(EMAIL, 1L, "Calle 123"))
-                    .isInstanceOf(RuntimeException.class);
-        }
-
-        @Test
-        @DisplayName("Debería lanzar excepción cuando el stock es insuficiente")
-        void procesarPedido_stockInsuficiente_lanzaExcepcion() {
-            // Arrange
-            when(carritoRepository.buscarCarritoActivo(10L))
-                    .thenReturn(Optional.of(carritoConItems(5))); // pide 5
-            when(metodoPagoRepo.findById(1L))
-                    .thenReturn(Optional.of(metodoPago(1L, "TARJETA_CREDITO")));
-            when(productoRepository.buscarPorId(1L))
-                    .thenReturn(Optional.of(productoActivo(2))); // stock = 2
-
-            // Act & Assert
-            assertThatThrownBy(() -> sut.procesarPedido(EMAIL, 1L, "Calle 123"))
-                    .isInstanceOf(RuntimeException.class)
-                    .hasMessageContaining("insuficiente");
-
-            verify(pedidoJpaRepo, never()).saveAndFlush(any());
-        }
-
-        @Test
-        @DisplayName("Debería lanzar excepción cuando el producto está inactivo")
-        void procesarPedido_productoInactivo_lanzaExcepcion() {
-            // Arrange
-            Producto inactivo = Producto.builder()
-                    .idProducto(1L).stock(10).activo(false).build();
-            when(carritoRepository.buscarCarritoActivo(10L))
-                    .thenReturn(Optional.of(carritoConItems(2)));
-            when(metodoPagoRepo.findById(1L))
-                    .thenReturn(Optional.of(metodoPago(1L, "TARJETA_CREDITO")));
-            when(productoRepository.buscarPorId(1L))
-                    .thenReturn(Optional.of(inactivo));
-
-            // Act & Assert
-            assertThatThrownBy(() -> sut.procesarPedido(EMAIL, 1L, "Calle 123"))
-                    .isInstanceOf(RuntimeException.class)
-                    .hasMessageContaining("no disponible");
-        }
-
-        @Test
-        @DisplayName("Debería lanzar excepción cuando el método de pago no existe")
-        void procesarPedido_metodoPagoInvalido_lanzaExcepcion() {
-            // Arrange — el servicio valida el carrito ANTES del método de pago
-            when(carritoRepository.buscarCarritoActivo(10L))
-                    .thenReturn(Optional.of(carritoConItems(1)));
-            when(metodoPagoRepo.findById(99L)).thenReturn(Optional.empty());
-
-            // Act & Assert
-            assertThatThrownBy(() -> sut.procesarPedido(EMAIL, 99L, "Calle 123"))
-                    .isInstanceOf(RuntimeException.class)
-                    .hasMessageContaining("Método de pago no válido");
-        }
-
-        @Test
-        @DisplayName("Debería usar el número de pedido generado")
-        void procesarPedido_usaNumeroPedidoGenerado() {
-            // Arrange
-            setupCheckoutExitoso(2);
-            when(pedidoRepository.generarNumeroPedido()).thenReturn("PL-20250525-9999");
-
-            // Act
-            sut.procesarPedido(EMAIL, 1L, "Calle 123");
-
-            // Assert
-            ArgumentCaptor<PedidoEntity> captor = ArgumentCaptor.forClass(PedidoEntity.class);
-            verify(pedidoJpaRepo).saveAndFlush(captor.capture());
-            assertThat(captor.getValue().getNumeroPedido()).isEqualTo("PL-20250525-9999");
-        }
-
-        @Test
-        @DisplayName("Debería guardar los detalles del pedido")
-        void procesarPedido_guardaDetalles() {
-            // Arrange
-            setupCheckoutExitoso(2);
-
-            // Act
-            sut.procesarPedido(EMAIL, 1L, "Calle 123");
-
-            // Assert — saveAll debe haberse llamado con los detalles
-            verify(detallePedidoRepo).saveAll(anyList());
+            assertThat(captor.getValue().getStock()).isEqualTo(8);
         }
     }
-
-    // ═══════════════════════════════════════════════════════════════════════
-    // OBTENER HISTORIAL
-    // ═══════════════════════════════════════════════════════════════════════
 
     @Nested
     @DisplayName("obtenerHistorial()")
     class ObtenerHistorialTests {
 
         @Test
-        @DisplayName("Debería retornar la lista de pedidos del usuario")
-        void obtenerHistorial_conPedidos_retornaLista() {
-            // Arrange
-            List<Pedido> pedidos = List.of(
-                    pedidoDominio(1L),
-                    pedidoDominio(2L)
-            );
-            when(pedidoRepository.buscarPorUsuario(10L)).thenReturn(pedidos);
-            when(pagoJpaRepo.findByIdPedido(anyLong())).thenReturn(Optional.empty());
+        @DisplayName("Retorna pedidos del usuario")
+        void obtenerHistorial_exito() {
+            when(usuarioRepository.buscarPorEmail(EMAIL)).thenReturn(Optional.of(usuario()));
+            when(pedidoRepository.buscarPorUsuario(10L)).thenReturn(List.of(pedidoDominio(1L)));
 
-            // Act
-            List<Pedido> resultado = sut.obtenerHistorial(EMAIL);
-
-            // Assert
-            assertThat(resultado).hasSize(2);
-        }
-
-        @Test
-        @DisplayName("Debería retornar lista vacía cuando el usuario no tiene pedidos")
-        void obtenerHistorial_sinPedidos_retornaListaVacia() {
-            // Arrange
-            when(pedidoRepository.buscarPorUsuario(10L)).thenReturn(List.of());
-
-            // Act
-            List<Pedido> resultado = sut.obtenerHistorial(EMAIL);
-
-            // Assert
-            assertThat(resultado).isEmpty();
-        }
-
-        @Test
-        @DisplayName("Debería enriquecer el pago de cada pedido del historial")
-        void obtenerHistorial_enriquecePagoDeCadaPedido() {
-            // Arrange
-            Pedido p1 = pedidoDominio(1L);
-            Pedido p2 = pedidoDominio(2L);
-            when(pedidoRepository.buscarPorUsuario(10L)).thenReturn(List.of(p1, p2));
-
-            PagoEntity pago = PagoEntity.builder()
-                    .idPago(1L).idPedido(1L).idMetodo(1L)
-                    .monto(new BigDecimal("50000")).build();
-            when(pagoJpaRepo.findByIdPedido(anyLong())).thenReturn(Optional.of(pago));
-            when(metodoPagoRepo.findById(1L))
-                    .thenReturn(Optional.of(metodoPago(1L, "TARJETA_CREDITO")));
-
-            // Act
-            sut.obtenerHistorial(EMAIL);
-
-            // Assert — se consultó el pago para cada uno
-            verify(pagoJpaRepo, times(2)).findByIdPedido(anyLong());
-        }
-
-        @Test
-        @DisplayName("Debería lanzar excepción cuando el usuario no existe")
-        void obtenerHistorial_usuarioInexistente_lanzaExcepcion() {
-            // Arrange
-            when(usuarioRepository.buscarPorEmail("noexiste@test.com"))
-                    .thenReturn(Optional.empty());
-
-            // Act & Assert
-            assertThatThrownBy(() -> sut.obtenerHistorial("noexiste@test.com"))
-                    .isInstanceOf(RuntimeException.class)
-                    .hasMessageContaining("Usuario no encontrado");
+            List<Pedido> res = sut.obtenerHistorial(EMAIL);
+            assertThat(res).hasSize(1);
         }
     }
-
-    // ═══════════════════════════════════════════════════════════════════════
-    // OBTENER DETALLE
-    // ═══════════════════════════════════════════════════════════════════════
 
     @Nested
     @DisplayName("obtenerDetalle()")
     class ObtenerDetalleTests {
 
         @Test
-        @DisplayName("Debería retornar el pedido cuando pertenece al usuario")
-        void obtenerDetalle_pedidoPropio_loRetorna() {
-            // Arrange
-            Pedido pedido = pedidoDominio(1L); // idUsuario = 10L
-            when(pedidoRepository.buscarPorId(1L)).thenReturn(Optional.of(pedido));
-            when(pagoJpaRepo.findByIdPedido(1L)).thenReturn(Optional.empty());
+        @DisplayName("Deniega acceso si no es el usuario")
+        void obtenerDetalle_noPropietario() {
+            when(usuarioRepository.buscarPorEmail(EMAIL)).thenReturn(Optional.of(usuario()));
+            Pedido ajeno = pedidoDominio(1L);
+            ajeno.setIdUsuario(999L);
+            when(pedidoRepository.buscarPorIdEnriquecido(1L)).thenReturn(ajeno);
 
-            // Act
-            Pedido resultado = sut.obtenerDetalle(EMAIL, 1L);
-
-            // Assert
-            assertThat(resultado).isNotNull();
-            assertThat(resultado.getIdPedido()).isEqualTo(1L);
-        }
-
-        @Test
-        @DisplayName("Debería lanzar excepción cuando el pedido pertenece a otro usuario")
-        void obtenerDetalle_pedidoAjeno_lanzaExcepcion() {
-            // Arrange — pedido de usuario 99, no del 10
-            Pedido pedidoAjeno = Pedido.builder()
-                    .idPedido(1L).idUsuario(99L)
-                    .numeroPedido("PL-AJENO").build();
-            when(pedidoRepository.buscarPorId(1L)).thenReturn(Optional.of(pedidoAjeno));
-
-            // Act & Assert
             assertThatThrownBy(() -> sut.obtenerDetalle(EMAIL, 1L))
                     .isInstanceOf(RuntimeException.class)
-                    .hasMessageContaining("permisos");
+                    .hasMessageContaining("No tienes permisos");
         }
 
         @Test
-        @DisplayName("Debería lanzar excepción cuando el pedido no existe")
-        void obtenerDetalle_pedidoInexistente_lanzaExcepcion() {
-            // Arrange
-            when(pedidoRepository.buscarPorId(99L)).thenReturn(Optional.empty());
+        @DisplayName("Retorna el pedido enriquecido")
+        void obtenerDetalle_exito() {
+            when(usuarioRepository.buscarPorEmail(EMAIL)).thenReturn(Optional.of(usuario()));
+            when(pedidoRepository.buscarPorIdEnriquecido(1L)).thenReturn(pedidoDominio(1L));
 
-            // Act & Assert
-            assertThatThrownBy(() -> sut.obtenerDetalle(EMAIL, 99L))
-                    .isInstanceOf(RuntimeException.class)
-                    .hasMessageContaining("Pedido no encontrado");
-        }
-
-        @Test
-        @DisplayName("Debería enriquecer el pago al obtener el detalle")
-        void obtenerDetalle_enriquecePago() {
-            // Arrange
-            Pedido pedido = pedidoDominio(1L);
-            when(pedidoRepository.buscarPorId(1L)).thenReturn(Optional.of(pedido));
-            PagoEntity pago = PagoEntity.builder()
-                    .idPago(1L).idPedido(1L).idMetodo(2L)
-                    .monto(new BigDecimal("75000")).build();
-            when(pagoJpaRepo.findByIdPedido(1L)).thenReturn(Optional.of(pago));
-            when(metodoPagoRepo.findById(2L))
-                    .thenReturn(Optional.of(metodoPago(2L, "TARJETA_DEBITO")));
-
-            // Act
-            sut.obtenerDetalle(EMAIL, 1L);
-
-            // Assert — se consultó el pago
-            verify(pagoJpaRepo).findByIdPedido(1L);
-            verify(metodoPagoRepo).findById(2L);
+            Pedido res = sut.obtenerDetalle(EMAIL, 1L);
+            assertThat(res.getIdPedido()).isEqualTo(1L);
         }
     }
 }

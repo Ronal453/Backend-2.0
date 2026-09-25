@@ -107,6 +107,16 @@ public class CarritoService implements GestionarCarritoUseCase {
                 .orElseThrow(() -> new RuntimeException(
                         "Item no encontrado: " + idItem));
 
+        // ── Validar ownership: el ítem debe pertenecer al carrito del usuario ──
+        var usuario = obtenerUsuario(email);
+        var carritoActivo = carritoRepository
+                .buscarCarritoActivo(usuario.getIdUsuario())
+                .orElseThrow(() -> new RuntimeException("No tienes un carrito activo"));
+
+        if (!itemExistente.getIdCarrito().equals(carritoActivo.getIdCarrito())) {
+            throw new RuntimeException("No tienes permisos para modificar este ítem");
+        }
+
         // Validar stock disponible para la nueva cantidad
         var producto = productoRepository
                 .buscarPorId(itemExistente.getIdProducto())

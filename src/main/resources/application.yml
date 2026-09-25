@@ -3,34 +3,40 @@ spring:
     name: plantopolis-backend
 
   # ── Base de datos ────────────────────────────────────────
+  # OBLIGATORIO: definir en variables de entorno o .env
   datasource:
-    url: ${SPRING_DATASOURCE_URL:jdbc:oracle:thin:@//localhost:1521/XEPDB1}
-    username: ${SPRING_DATASOURCE_USERNAME:plantopolis_user}
-    password: ${SPRING_DATASOURCE_PASSWORD:Plantopolis123}
+    url: ${SPRING_DATASOURCE_URL}
+    username: ${SPRING_DATASOURCE_USERNAME}
+    password: ${SPRING_DATASOURCE_PASSWORD}
     driver-class-name: oracle.jdbc.OracleDriver
 
   # ── JPA / Hibernate ──────────────────────────────────────
   jpa:
     hibernate:
       ddl-auto: validate
-    show-sql: true
+    show-sql: ${SHOW_SQL:false}
     properties:
       hibernate:
         dialect: org.hibernate.dialect.OracleDialect
-        format_sql: true
+        format_sql: false
 
 # ── Servidor ─────────────────────────────────────────────
 server:
   port: 8080
 
 # ── JWT ──────────────────────────────────────────────────
+# OBLIGATORIO: JWT_SECRET debe tener mínimo 256 bits (32+ caracteres)
 jwt:
-  secret: ${JWT_SECRET:plantopolisJwtSecretKey2024MuyLargaMinimo256BitsParaHMACSHA}
+  secret: ${JWT_SECRET}
   expiration: 86400000
 
 # ── Google OAuth2 ─────────────────────────────────────
 google:
-  client-id: ${GOOGLE_CLIENT_ID:606774857655-65m1s4blts0ej9bvftgu7th1ujid373f.apps.googleusercontent.com}
+  client-id: ${GOOGLE_CLIENT_ID}
+
+# ── Cookie de sesión ──────────────────────────────────
+cookie:
+  secure: ${COOKIE_SECURE:false}
 
 # ── Resend (email transaccional vía HTTP) ─────────────────
 # CAMBIO: reemplaza la antigua sección spring.mail (SMTP), porque la
@@ -52,4 +58,4 @@ springdoc:
 # ── Logs ─────────────────────────────────────────────────
 logging:
   level:
-    com.plantopolis: DEBUG
+    com.plantopolis: ${LOG_LEVEL:INFO}

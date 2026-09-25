@@ -6,12 +6,9 @@ import com.plantopolis.backend.domain.model.ReporteVentas;
 import com.plantopolis.backend.domain.port.in.ObtenerReportesUseCase;
 import com.plantopolis.backend.domain.port.out.PedidoRepositoryPort;
 import com.plantopolis.backend.domain.port.out.ProductoRepositoryPort;
-import com.plantopolis.backend.infrastructure.persistence.repository.DetallePedidoJpaRepository;
-import com.plantopolis.backend.infrastructure.persistence.repository.PagoJpaRepository;
-import com.plantopolis.backend.infrastructure.persistence.repository.PedidoJpaRepository;
+import com.plantopolis.backend.domain.port.out.ReporteRepositoryPort;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
@@ -29,11 +26,9 @@ import java.util.Map;
 @RequiredArgsConstructor
 public class AdminReporteService implements ObtenerReportesUseCase {
 
-    private final PagoJpaRepository          pagoRepo;
-    private final PedidoJpaRepository        pedidoRepo;
-    private final DetallePedidoJpaRepository detalleRepo;
+    private final ReporteRepositoryPort      reporteRepository;
     private final ProductoRepositoryPort     productoRepository;
-    private final PedidoRepositoryPort       pedidoRepositoryPort; // NUEVO — export CSV
+    private final PedidoRepositoryPort       pedidoRepositoryPort;
 
     private static final DateTimeFormatter FORMATO_FECHA_CSV =
             DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm");
@@ -42,10 +37,10 @@ public class AdminReporteService implements ObtenerReportesUseCase {
     public ReporteVentas obtenerReporte() {
         log.debug("Calculando reporte de ventas...");
 
-        BigDecimal totalIngresos = pagoRepo.getTotalIngresosAprobados();
+        BigDecimal totalIngresos = reporteRepository.obtenerTotalIngresosAprobados();
         if (totalIngresos == null) totalIngresos = BigDecimal.ZERO;
 
-        long totalPedidos = pedidoRepo.count();
+        long totalPedidos = reporteRepository.contarTotalPedidos();
 
         Long totalProductosActivos = productoRepository.contarActivos();
         if (totalProductosActivos == null) totalProductosActivos = 0L;
@@ -62,22 +57,13 @@ public class AdminReporteService implements ObtenerReportesUseCase {
         pedidosPorEstado.put("ENTREGADO",  0L);
         pedidosPorEstado.put("CANCELADO",  0L);
 
-        pedidoRepo.countPorEstado().forEach(row -> {
-            String estado = (String) row[0];
-            Long   count  = (Long)   row[1];
-            pedidosPorEstado.put(estado, count);
-        });
+        // Combinar con los valores reales obtenidos desde el puerto
+        Map<String, Long> dbEstados = reporteRepository.contarPedidosPorEstado();
+        for (Map.Entry<String, Long> entry : dbEstados.entrySet()) {
+            pedidosPorEstado.put(entry.getKey(), entry.getValue());
+        }
 
-        List<ProductoMasVendido> topProductos = detalleRepo
-                .findTopProductos(PageRequest.of(0, 5))
-                .stream()
-                .map(row -> ProductoMasVendido.builder()
-                        .idProducto((Long) row[0])
-                        .nombreProducto((String) row[1])
-                        .totalVendido((Long) row[2])
-                        .totalIngresos((BigDecimal) row[3])
-                        .build())
-                .toList();
+        List<ProductoMasVendido> topProductos = reporteRepository.obtenerTopProductosVendidos(5);
 
         return ReporteVentas.builder()
                 .totalIngresos(totalIngresos)

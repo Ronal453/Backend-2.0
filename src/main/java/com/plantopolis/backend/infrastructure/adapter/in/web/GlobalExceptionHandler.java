@@ -1,5 +1,6 @@
 package com.plantopolis.backend.infrastructure.adapter.in.web;
 
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.authentication.BadCredentialsException;
@@ -12,6 +13,7 @@ import java.time.LocalDateTime;
 import java.util.HashMap;
 import java.util.Map;
 
+@Slf4j
 @RestControllerAdvice
 public class GlobalExceptionHandler {
 
@@ -31,9 +33,26 @@ public class GlobalExceptionHandler {
                 .body(errorBody("Esta cuenta fue desactivada. Contacta al administrador.", 403));
     }
 
+    @ExceptionHandler(IllegalArgumentException.class)
+    public ResponseEntity<Map<String, Object>> handleIllegalArgument(
+            IllegalArgumentException ex) {
+        return ResponseEntity
+                .status(HttpStatus.BAD_REQUEST)
+                .body(errorBody(ex.getMessage(), 400));
+    }
+
+    @ExceptionHandler(IllegalStateException.class)
+    public ResponseEntity<Map<String, Object>> handleIllegalState(
+            IllegalStateException ex) {
+        return ResponseEntity
+                .status(HttpStatus.CONFLICT)
+                .body(errorBody(ex.getMessage(), 409));
+    }
+
     @ExceptionHandler(RuntimeException.class)
     public ResponseEntity<Map<String, Object>> handleRuntime(
             RuntimeException ex) {
+        log.error("Error interno no controlado: {}", ex.getMessage(), ex);
         return ResponseEntity
                 .status(HttpStatus.CONFLICT)
                 .body(errorBody(ex.getMessage(), 409));

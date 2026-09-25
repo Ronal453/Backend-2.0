@@ -3,9 +3,11 @@ package com.plantopolis.backend.infrastructure.adapter.in.web;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.context.annotation.Profile;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.client.RestClient;
 
@@ -16,13 +18,15 @@ import java.util.Map;
 /**
  * Controlador de diagnóstico para probar el envío de correo.
  *
- * CAMBIO: ya no usa JavaMailSender (SMTP), ahora prueba la API HTTP
- * de Resend directamente, igual que EmailAdapter.
+ * SOLO disponible en el perfil "dev" — NO se carga en producción.
+ * Requiere rol ADMINISTRADOR para evitar abuso.
  */
 @Slf4j
 @RestController
 @RequestMapping("/api/test")
 @RequiredArgsConstructor
+@Profile("dev")
+@PreAuthorize("hasRole('ADMINISTRADOR')")
 public class EmailTestController {
 
     @Value("${resend.api-key}")

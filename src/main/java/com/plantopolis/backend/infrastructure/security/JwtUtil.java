@@ -22,11 +22,8 @@ public class JwtUtil {
     private final JwtConfig jwtConfig;
 
     private SecretKey getSigningKey() {
-        byte[] keyBytes = Decoders.BASE64.decode(
-            java.util.Base64.getEncoder()
-                .encodeToString(jwtConfig.getSecret().getBytes())
-        );
-        return Keys.hmacShaKeyFor(keyBytes);
+        return Keys.hmacShaKeyFor(
+            jwtConfig.getSecret().getBytes(java.nio.charset.StandardCharsets.UTF_8));
     }
 
     /** Genera el token JWT con email + rol como claim */

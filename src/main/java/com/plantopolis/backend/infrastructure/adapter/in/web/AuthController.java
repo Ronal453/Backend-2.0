@@ -17,11 +17,11 @@ import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseCookie;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
@@ -38,10 +38,12 @@ public class AuthController {
     private final RegistrarUsuarioUseCase registrarUseCase;
     private final LoginUseCase            loginUseCase;
     private final LoginGoogleUseCase      loginGoogleUseCase;
-    private final PasswordEncoder         passwordEncoder;
 
     //  Inyectamos JwtUtil para extraer el rol del token
     private final JwtUtil jwtUtil;
+
+    @Value("${cookie.secure:false}")
+    private boolean cookieSecure;
 
     // ── REGISTRO ─────────────────────────────────────────────────────────
     @Operation(
@@ -152,7 +154,7 @@ public class AuthController {
 
         ResponseCookie jwtCookie = ResponseCookie.from("jwt_token", token)
                 .httpOnly(true)
-                .secure(false) // Debería ser true en producción con HTTPS
+                .secure(cookieSecure)
                 .path("/")
                 .maxAge(24 * 60 * 60) // 24 horas
                 .sameSite("Lax")
@@ -179,7 +181,7 @@ public class AuthController {
 
         ResponseCookie jwtCookie = ResponseCookie.from("jwt_token", result.token())
                 .httpOnly(true)
-                .secure(false) // Debería ser true en producción con HTTPS
+                .secure(cookieSecure)
                 .path("/")
                 .maxAge(24 * 60 * 60) // 24 horas
                 .sameSite("Lax")
@@ -199,7 +201,7 @@ public class AuthController {
     public ResponseEntity<Void> logout() {
         ResponseCookie clearCookie = ResponseCookie.from("jwt_token", "")
                 .httpOnly(true)
-                .secure(false)
+                .secure(cookieSecure)
                 .path("/")
                 .maxAge(0) // Borra la cookie
                 .sameSite("Lax")
