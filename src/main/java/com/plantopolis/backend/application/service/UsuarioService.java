@@ -79,8 +79,7 @@ public class UsuarioService implements RegistrarUsuarioUseCase, LoginUseCase, Lo
         return jwtUtil.generarToken(userDetails, rol);
     }
 
-    @Override
-    public LoginGoogleResult loginConGoogle(String googleIdToken) {
+    private GoogleIdToken.Payload verificarGoogleToken(String googleIdToken) {
         try {
             GoogleIdTokenVerifier verifier = new GoogleIdTokenVerifier.Builder(
                     new NetHttpTransport(),
@@ -94,44 +93,84 @@ public class UsuarioService implements RegistrarUsuarioUseCase, LoginUseCase, Lo
                 throw new RuntimeException("El token de Google es inválido o ha expirado");
             }
 
-            GoogleIdToken.Payload payload = idToken.getPayload();
-            String email = payload.getEmail();
-            String nombre = (String) payload.get("name");
-
-            if (email == null || email.isBlank()) {
-                throw new RuntimeException("El token de Google no contiene un email válido");
-            }
-
-            // Buscar si el usuario ya existe, sino crearlo con ROL_CLIENTE
-            Usuario usuario = usuarioRepository.buscarPorEmail(email).orElseGet(() -> {
-                log.info("Creando nuevo usuario vía Google Sign-In para email: {}", email);
-                String randomPassword = UUID.randomUUID().toString();
-                Usuario nuevo = Usuario.builder()
-                        .nombreCompleto(nombre != null ? nombre : email)
-                        .correo(email)
-                        .contrasenaHash(passwordEncoder.encode(randomPassword))
-                        .idRol(ROL_CLIENTE)
-                        .fechaRegistro(LocalDateTime.now(ZONA_BOGOTA))
-                        .activo(true)
-                        .fechaActualizacion(LocalDateTime.now(ZONA_BOGOTA))
-                        .build();
-                return usuarioRepository.guardar(nuevo);
-            });
-
-            if (Boolean.FALSE.equals(usuario.getActivo())) {
-                throw new RuntimeException("La cuenta está desactivada. Contacte al administrador.");
-            }
-
-            var userDetails = userDetailsService.loadUserByUsername(email);
-            String rol = (usuario.getRolNombre() != null) ? usuario.getRolNombre() : "CLIENTE";
-            String token = jwtUtil.generarToken(userDetails, rol);
-
-            return new LoginGoogleResult(token, email, rol);
+            return idToken.getPayload();
         } catch (RuntimeException e) {
             throw e;
         } catch (Exception e) {
             log.error("Error al verificar token de Google: {}", e.getMessage(), e);
             throw new RuntimeException("Error al autenticar con Google: " + e.getMessage());
         }
+    }
+
+    @Override
+    public LoginGoogleResult loginConGoogle(String googleIdToken) {
+        GoogleIdToken.Payload payload = verificarGoogleToken(googleIdToken);
+        String email = payload.getEmail();
+        String nombre = (String) payload.get("name");
+
+        if (email == null || email.isBlank()) {
+            throw new RuntimeException("El token de Google no contiene un email válido");
+        }
+
+        // Buscar si el usuario ya existe, sino crearlo con ROL_CLIENTE
+        Usuario usuario = usuarioRepository.buscarPorEmail(email).orElseGet(() -> {
+            log.info("Creando nuevo usuario vía Google Sign-In para email: {}", email);
+            String randomPassword = UUID.randomUUID().toString();
+            Usuario nuevo = Usuario.builder()
+                    .nombreCompleto(nombre != null ? nombre : email)
+                    .correo(email)
+                    .contrasenaHash(passwordEncoder.encode(randomPassword))
+                    .idRol(ROL_CLIENTE)
+                    .fechaRegistro(LocalDateTime.now(ZONA_BOGOTA))
+                    .activo(true)
+                    .fechaActualizacion(LocalDateTime.now(ZONA_BOGOTA))
+                    .build();
+            return usuarioRepository.guardar(nuevo);
+        });
+
+        if (Boolean.FALSE.equals(usuario.getActivo())) {
+            throw new RuntimeException("La cuenta está desactivada. Contacte al administrador.");
+        }
+
+        var userDetails = userDetailsService.loadUserByUsername(email);
+        String rol = (usuario.getRolNombre() != null) ? usuario.getRolNombre() : "CLIENTE";
+        String token = jwtUtil.generarToken(userDetails, rol);
+
+        return new LoginGoogleResult(token, email, rol);
+    }
+
+    @Override
+    public LoginGoogleResult registrarConGoogle(String googleIdToken) {
+        GoogleIdToken.Payload payload = verificarGoogleToken(googleIdToken);
+        String email = payload.getEmail();
+        String nombre = (String) payload.get("name");
+
+        if (email == null || email.isBlank()) {
+            throw new RuntimeException("El token de Google no contiene un email válido");
+        }
+
+        // Si la cuenta YA existe, lanzar excepción impidiendo volver a registrarla
+        if (usuarioRepository.existePorEmail(email)) {
+            throw new RuntimeException("El email ya está registrado: " + email);
+        }
+
+        log.info("Registrando nuevo usuario vía Google Sign-In para email: {}", email);
+        String randomPassword = UUID.randomUUID().toString();
+        Usuario nuevo = Usuario.builder()
+                .nombreCompleto(nombre != null ? nombre : email)
+                .correo(email)
+                .contrasenaHash(passwordEncoder.encode(randomPassword))
+                .idRol(ROL_CLIENTE)
+                .fechaRegistro(LocalDateTime.now(ZONA_BOGOTA))
+                .activo(true)
+                .fechaActualizacion(LocalDateTime.now(ZONA_BOGOTA))
+                .build();
+        Usuario guardado = usuarioRepository.guardar(nuevo);
+
+        var userDetails = userDetailsService.loadUserByUsername(email);
+        String rol = (guardado.getRolNombre() != null) ? guardado.getRolNombre() : "CLIENTE";
+        String token = jwtUtil.generarToken(userDetails, rol);
+
+        return new LoginGoogleResult(token, email, rol);
     }
 }

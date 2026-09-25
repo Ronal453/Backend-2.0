@@ -173,11 +173,16 @@ public class AuthController {
     // ── LOGIN GOOGLE ──────────────────────────────────────────────────────
     @Operation(
         summary = "Iniciar sesión / registrarse con Google",
-        description = "Recibe el ID Token emitido por Google, lo valida, registra o autentica al usuario y establece la cookie de sesión JWT."
+        description = "Recibe el ID Token emitido por Google, lo valida, registra o autentica al usuario y establece la cookie de sesión JWT. Si modo='registro', falla si la cuenta ya existe."
     )
     @PostMapping("/google")
-    public ResponseEntity<AuthResponse> googleLogin(@Valid @RequestBody GoogleLoginRequest request) {
-        var result = loginGoogleUseCase.loginConGoogle(request.idToken());
+    public ResponseEntity<AuthResponse> googleLogin(
+            @Valid @RequestBody GoogleLoginRequest request,
+            @RequestParam(required = false, defaultValue = "login") String modo) {
+
+        var result = "registro".equalsIgnoreCase(modo)
+                ? loginGoogleUseCase.registrarConGoogle(request.idToken())
+                : loginGoogleUseCase.loginConGoogle(request.idToken());
 
         ResponseCookie jwtCookie = ResponseCookie.from("jwt_token", result.token())
                 .httpOnly(true)
