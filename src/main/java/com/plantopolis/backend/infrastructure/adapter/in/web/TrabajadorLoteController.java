@@ -47,11 +47,23 @@ public class TrabajadorLoteController {
             @RequestParam(required = false) Long idZona,
             @Parameter(description = "Estado del lote")
             @RequestParam(required = false) String estado,
+            @Parameter(description = "Término de búsqueda (código o especie)")
+            @RequestParam(required = false) String buscar,
             @RequestParam(defaultValue = "0") int page,
-            @RequestParam(defaultValue = "15") int size
+            @RequestParam(defaultValue = "15") int size,
+            @RequestParam(defaultValue = "fechaSiembra") String sort,
+            @RequestParam(defaultValue = "desc") String dir
     ) {
-        var pageable = PageRequest.of(page, size, Sort.by("fechaSiembra").descending());
-        var lotes = lotesUseCase.listarLotes(idZona, estado, pageable).map(LoteResponse::from);
+        Sort.Direction direction = dir.equalsIgnoreCase("asc") ? Sort.Direction.ASC : Sort.Direction.DESC;
+        // Mapeo seguro de campos de ordenamiento
+        String sortProperty = switch (sort.toLowerCase()) {
+            case "nombre" -> "especie";
+            case "fechacreacion" -> "fechaCreacion";
+            case "codigo" -> "codigoLote";
+            default -> "fechaSiembra";
+        };
+        var pageable = PageRequest.of(page, size, Sort.by(direction, sortProperty));
+        var lotes = lotesUseCase.listarLotes(idZona, estado, buscar, pageable).map(LoteResponse::from);
         return ResponseEntity.ok(lotes);
     }
 

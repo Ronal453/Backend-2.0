@@ -34,14 +34,18 @@ public class AdminReporteService implements ObtenerReportesUseCase {
             DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm");
 
     @Override
-    public ReporteVentas obtenerReporte() {
-        log.debug("Calculando reporte de ventas...");
+    public ReporteVentas obtenerReporte(LocalDate fechaInicio, LocalDate fechaFin) {
+        java.time.LocalDateTime inicio = fechaInicio != null ? fechaInicio.atStartOfDay() : null;
+        java.time.LocalDateTime fin = fechaFin != null ? fechaFin.atTime(java.time.LocalTime.MAX) : null;
+        log.info("Calculando reporte de ventas... paso 1");
 
-        BigDecimal totalIngresos = reporteRepository.obtenerTotalIngresosAprobados();
+        BigDecimal totalIngresos = reporteRepository.obtenerTotalIngresosAprobados(inicio, fin);
         if (totalIngresos == null) totalIngresos = BigDecimal.ZERO;
+        
+        log.info("Calculando reporte de ventas... paso 2");
+        long totalPedidos = reporteRepository.contarTotalPedidos(inicio, fin);
 
-        long totalPedidos = reporteRepository.contarTotalPedidos();
-
+        log.info("Calculando reporte de ventas... paso 3");
         Long totalProductosActivos = productoRepository.contarActivos();
         if (totalProductosActivos == null) totalProductosActivos = 0L;
 
@@ -57,13 +61,46 @@ public class AdminReporteService implements ObtenerReportesUseCase {
         pedidosPorEstado.put("ENTREGADO",  0L);
         pedidosPorEstado.put("CANCELADO",  0L);
 
-        // Combinar con los valores reales obtenidos desde el puerto
-        Map<String, Long> dbEstados = reporteRepository.contarPedidosPorEstado();
+        log.info("Calculando reporte de ventas... paso 4");
+        Map<String, Long> dbEstados = reporteRepository.contarPedidosPorEstado(inicio, fin);
         for (Map.Entry<String, Long> entry : dbEstados.entrySet()) {
             pedidosPorEstado.put(entry.getKey(), entry.getValue());
         }
 
-        List<ProductoMasVendido> topProductos = reporteRepository.obtenerTopProductosVendidos(5);
+        log.info("Calculando reporte de ventas... paso 5");
+        List<ProductoMasVendido> topProductos = reporteRepository.obtenerTopProductosVendidos(5, inicio, fin);
+
+        log.info("Calculando reporte de ventas... paso 6");
+        Long totalPlantasPerdidas = reporteRepository.contarTotalPlantasPerdidas();
+        if (totalPlantasPerdidas == null) totalPlantasPerdidas = 0L;
+
+        log.info("Calculando reporte de ventas... paso 7");
+        Map<String, Long> lotesPorFase = new LinkedHashMap<>();
+        lotesPorFase.put("GERMINANDO", 0L);
+        lotesPorFase.put("CRECIENDO", 0L);
+        lotesPorFase.put("LISTO_PARA_VENTA", 0L);
+        lotesPorFase.put("DESCARTADO", 0L);
+        Map<String, Long> dbLotes = reporteRepository.contarLotesPorFase();
+        for (Map.Entry<String, Long> entry : dbLotes.entrySet()) {
+            lotesPorFase.put(entry.getKey(), entry.getValue());
+        }
+
+        log.info("Calculando reporte de ventas... paso 8");
+        Map<String, Long> tareasPorEstado = new LinkedHashMap<>();
+        tareasPorEstado.put("POR_HACER", 0L);
+        tareasPorEstado.put("EN_PROGRESO", 0L);
+        tareasPorEstado.put("EN_REVISION", 0L);
+        tareasPorEstado.put("COMPLETADA", 0L);
+        tareasPorEstado.put("BLOQUEADA", 0L);
+        Map<String, Long> dbTareas = reporteRepository.contarTareasPorEstado();
+        for (Map.Entry<String, Long> entry : dbTareas.entrySet()) {
+            tareasPorEstado.put(entry.getKey(), entry.getValue());
+        }
+
+        log.info("Calculando reporte de ventas... paso 9");
+        Map<String, Long> mermasPorCausa = reporteRepository.sumarMermasPorCausa();
+
+        log.info("Calculando reporte de ventas... final");
 
         return ReporteVentas.builder()
                 .totalIngresos(totalIngresos)
@@ -72,6 +109,10 @@ public class AdminReporteService implements ObtenerReportesUseCase {
                 .promedioOrden(promedioOrden)
                 .pedidosPorEstado(pedidosPorEstado)
                 .topProductos(topProductos)
+                .totalPlantasPerdidas(totalPlantasPerdidas)
+                .lotesPorFase(lotesPorFase)
+                .tareasPorEstado(tareasPorEstado)
+                .mermasPorCausa(mermasPorCausa)
                 .build();
     }
 

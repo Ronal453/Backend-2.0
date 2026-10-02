@@ -70,10 +70,11 @@ public class AdminLoteController {
     @PostMapping("/{id}/vincular")
     public ResponseEntity<LoteResponse> vincularLote(
             @PathVariable Long id,
-            @Valid @RequestBody VincularLoteRequest request
+            @Valid @RequestBody VincularLoteRequest request,
+            @AuthenticationPrincipal org.springframework.security.core.userdetails.UserDetails user
     ) {
         try {
-            LoteProduccion loteVinculado = gestionarLotesAdminUseCase.vincularLoteConProducto(id, request.idProducto());
+            LoteProduccion loteVinculado = gestionarLotesAdminUseCase.vincularLoteConProducto(id, request.idProducto(), user.getUsername());
             return ResponseEntity.ok(LoteResponse.from(loteVinculado));
         } catch (IllegalArgumentException e) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, e.getMessage(), e);

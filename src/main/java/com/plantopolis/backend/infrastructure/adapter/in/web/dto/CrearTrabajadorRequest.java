@@ -20,8 +20,11 @@ public record CrearTrabajadorRequest(
 
         @Schema(description = "Contraseña inicial asignada por el admin. " +
                               "Se recomienda que el trabajador la cambie en su primer ingreso.",
-                example = "Temporal2024")
+                example = "Temporal2024$")
         @NotBlank(message = "La contraseña inicial es obligatoria")
-        @Size(min = 6, message = "La contraseña debe tener al menos 6 caracteres")
+        @jakarta.validation.constraints.Pattern(
+            regexp = "^(?=.*[A-Z])(?=.*\\d)(?=.*[@$!%*?&])[A-Za-z\\d@$!%*?&]{8,}$", 
+            message = "La contraseña debe tener mínimo 8 caracteres, al menos una mayúscula, un número y un carácter especial"
+        )
         String passwordInicial
 ) {}

@@ -20,6 +20,8 @@ import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.anyInt;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
@@ -34,10 +36,10 @@ class AdminReporteServiceTest {
     private AdminReporteService sut;
 
     private void setupBasico(BigDecimal ingresos, long pedidos, long activos) {
-        when(reporteRepository.obtenerTotalIngresosAprobados()).thenReturn(ingresos);
-        when(reporteRepository.contarTotalPedidos()).thenReturn(pedidos);
+        when(reporteRepository.obtenerTotalIngresosAprobados(any(), any())).thenReturn(ingresos);
+        when(reporteRepository.contarTotalPedidos(any(), any())).thenReturn(pedidos);
         when(productoRepository.contarActivos()).thenReturn(activos);
-        when(reporteRepository.contarPedidosPorEstado()).thenReturn(new HashMap<>());
+        when(reporteRepository.contarPedidosPorEstado(any(), any())).thenReturn(new HashMap<>());
         when(reporteRepository.obtenerTopProductosVendidos(anyInt())).thenReturn(new ArrayList<>());
     }
 
@@ -61,7 +63,7 @@ class AdminReporteServiceTest {
         Map<String, Long> mockEstados = new HashMap<>();
         mockEstados.put("PENDIENTE", 5L);
         mockEstados.put("ENVIADO", 10L);
-        when(reporteRepository.contarPedidosPorEstado()).thenReturn(mockEstados);
+        when(reporteRepository.contarPedidosPorEstado(any(), any())).thenReturn(mockEstados);
 
         ReporteVentas resultado = sut.obtenerReporte();
         assertThat(resultado.getPedidosPorEstado().get("PENDIENTE")).isEqualTo(5L);
@@ -73,10 +75,12 @@ class AdminReporteServiceTest {
         setupBasico(new BigDecimal("500000"), 15L, 10L);
         List<ProductoMasVendido> top = new ArrayList<>();
         top.add(ProductoMasVendido.builder().idProducto(1L).nombreProducto("Ficus").totalVendido(100L).totalIngresos(new BigDecimal("1000")).build());
-        when(reporteRepository.obtenerTopProductosVendidos(5)).thenReturn(top);
+        when(reporteRepository.obtenerTopProductosVendidos(eq(5), any(), any())).thenReturn(top);
 
         ReporteVentas resultado = sut.obtenerReporte();
         assertThat(resultado.getTopProductos()).hasSize(1);
         assertThat(resultado.getTopProductos().get(0).getNombreProducto()).isEqualTo("Ficus");
     }
 }
+
+

@@ -8,7 +8,7 @@ import java.util.List;
 import java.util.Optional;
 
 public interface LoteRepositoryPort {
-    Page<LoteProduccion> buscarConFiltros(Long idZona, String estadoLote, Pageable pageable);
+    Page<LoteProduccion> buscarConFiltros(Long idZona, String estadoLote, String termino, Pageable pageable);
     Optional<LoteProduccion> buscarPorId(Long idLote);
     LoteProduccion guardar(LoteProduccion lote);
     long contarLotesActivosPorZona(Long idZona);

@@ -38,8 +38,14 @@ public interface DetallePedidoJpaRepository
         JOIN d.producto pr
         JOIN d.pedido ped
         WHERE ped.idEstado != 5
+          AND (CAST(:fechaInicio AS timestamp) IS NULL OR ped.fechaPedido >= :fechaInicio)
+          AND (CAST(:fechaFin AS timestamp) IS NULL OR ped.fechaPedido <= :fechaFin)
         GROUP BY d.idProducto, pr.nombreProducto
         ORDER BY SUM(d.cantidad) DESC
     """)
-    List<Object[]> findTopProductos(Pageable pageable);
+    List<Object[]> findTopProductos(
+            @org.springframework.data.repository.query.Param("fechaInicio") java.time.LocalDateTime fechaInicio,
+            @org.springframework.data.repository.query.Param("fechaFin") java.time.LocalDateTime fechaFin,
+            Pageable pageable
+    );
 }

@@ -34,8 +34,8 @@ public class TrabajadorLoteService implements GestionarLotesTrabajadorUseCase {
     );
 
     @Override
-    public Page<LoteProduccion> listarLotes(Long idZona, String estadoLote, Pageable pageable) {
-        return loteRepo.buscarConFiltros(idZona, estadoLote, pageable);
+    public Page<LoteProduccion> listarLotes(Long idZona, String estadoLote, String termino, Pageable pageable) {
+        return loteRepo.buscarConFiltros(idZona, estadoLote, termino, pageable);
     }
 
     @Override

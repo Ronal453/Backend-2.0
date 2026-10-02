@@ -64,9 +64,24 @@ public interface PedidoJpaRepository extends JpaRepository<PedidoEntity, Long> {
     @Query("""
         SELECT e.descripcionEstado, COUNT(p)
         FROM PedidoEntity p JOIN p.estado e
+        WHERE (CAST(:fechaInicio AS timestamp) IS NULL OR p.fechaPedido >= :fechaInicio)
+          AND (CAST(:fechaFin AS timestamp) IS NULL OR p.fechaPedido <= :fechaFin)
         GROUP BY e.descripcionEstado
     """)
-    List<Object[]> countPorEstado();
+    List<Object[]> countPorEstado(
+            @Param("fechaInicio") java.time.LocalDateTime fechaInicio,
+            @Param("fechaFin") java.time.LocalDateTime fechaFin
+    );
+
+    @Query("""
+        SELECT COUNT(p) FROM PedidoEntity p
+        WHERE (CAST(:fechaInicio AS timestamp) IS NULL OR p.fechaPedido >= :fechaInicio)
+          AND (CAST(:fechaFin AS timestamp) IS NULL OR p.fechaPedido <= :fechaFin)
+    """)
+    long contarTotalPedidos(
+            @Param("fechaInicio") java.time.LocalDateTime fechaInicio,
+            @Param("fechaFin") java.time.LocalDateTime fechaFin
+    );
 
     boolean existsByNumeroPedido(String numeroPedido);
 

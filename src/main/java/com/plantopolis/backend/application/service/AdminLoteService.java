@@ -83,9 +83,14 @@ public class AdminLoteService implements GestionarLotesAdminUseCase {
         return loteGuardado;
     }
 
+    private static final String ESTADO_EN_TIENDA = "EN_TIENDA";
+
     @Override
     @Transactional
-    public LoteProduccion vincularLoteConProducto(Long idLote, Long idProducto) {
+    public LoteProduccion vincularLoteConProducto(Long idLote, Long idProducto, String emailAdmin) {
+        var usuario = usuarioRepository.buscarPorEmail(emailAdmin)
+                .orElseThrow(() -> new IllegalArgumentException("Usuario administrador no encontrado: " + emailAdmin));
+
         LoteProduccion lote = loteRepository.buscarPorId(idLote)
                 .orElseThrow(() -> new IllegalArgumentException("Lote no encontrado"));
 
@@ -110,10 +115,22 @@ public class AdminLoteService implements GestionarLotesAdminUseCase {
         producto.setStock(producto.getStock() + lote.getCantidadActual());
         productoRepository.guardar(producto);
 
-        // Marcar lote como vinculado
+        // Guardar historial del cambio a EN_TIENDA
+        HistorialEstadoLote historial = HistorialEstadoLote.builder()
+                .idLote(lote.getIdLote())
+                .idUsuario(usuario.getIdUsuario())
+                .estadoAnterior(lote.getEstadoLote())
+                .estadoNuevo(ESTADO_EN_TIENDA)
+                .observaciones("Lote vinculado a catálogo y movido a tienda")
+                .fechaCambio(LocalDateTime.now(ZoneId.of("America/Bogota")))
+                .build();
+        historialEstadoLoteRepository.guardar(historial);
+
+        // Marcar lote como vinculado y cambiar estado
         lote.setEsVinculado(true);
         lote.setIdProducto(producto.getIdProducto());
         lote.setNombreProducto(producto.getNombreProducto());
+        lote.setEstadoLote(ESTADO_EN_TIENDA);
         lote.setFechaVinculacion(LocalDateTime.now(ZoneId.of("America/Bogota")));
 
         return loteRepository.guardar(lote);

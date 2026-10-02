@@ -15,23 +15,24 @@ public interface LoteJpaRepository extends JpaRepository<LoteProduccionEntity, L
         SELECT l FROM LoteProduccionEntity l
         WHERE (:idZona IS NULL OR l.idZona = :idZona)
           AND (:estadoLote IS NULL OR UPPER(l.estadoLote) = UPPER(:estadoLote))
-        ORDER BY l.fechaSiembra DESC, l.idLote DESC
+          AND (:termino IS NULL OR UPPER(l.codigoLote) LIKE UPPER(CONCAT('%', :termino, '%')) OR UPPER(l.especie) LIKE UPPER(CONCAT('%', :termino, '%')))
     """)
     Page<LoteProduccionEntity> buscarConFiltros(
             @Param("idZona") Long idZona,
             @Param("estadoLote") String estadoLote,
+            @Param("termino") String termino,
             Pageable pageable
     );
     
-    long countByIdZonaAndEstadoLoteNot(Long idZona, String estadoLote);
+    long countByIdZonaAndEstadoLoteNotIn(Long idZona, java.util.Collection<String> estados);
     
-    java.util.List<LoteProduccionEntity> findByIdZonaAndEstadoLoteNotOrderByFechaSiembraDesc(Long idZona, String estadoLote);
+    java.util.List<LoteProduccionEntity> findByIdZonaAndEstadoLoteNotInOrderByFechaSiembraDesc(Long idZona, java.util.Collection<String> estados);
 
     @Query("""
         SELECT COALESCE(SUM(l.cantidadActual), 0)
         FROM LoteProduccionEntity l
         WHERE l.idZona = :idZona
-          AND UPPER(l.estadoLote) <> 'DESCARTADO'
+          AND UPPER(l.estadoLote) NOT IN ('DESCARTADO', 'EN_TIENDA')
     """)
     long sumarPlantasActivasPorZona(@Param("idZona") Long idZona);
 }

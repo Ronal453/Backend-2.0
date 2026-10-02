@@ -16,8 +16,9 @@ public interface GestionarLotesAdminUseCase {
      * HU16: Vincular lote con producto del catálogo.
      * @param idLote identificador del lote a vincular
      * @param idProducto identificador del producto al que se suma stock
+     * @param emailAdmin email del administrador que realiza la vinculación
      * @return LoteProduccion vinculado
      */
-    LoteProduccion vincularLoteConProducto(Long idLote, Long idProducto);
+    LoteProduccion vincularLoteConProducto(Long idLote, Long idProducto, String emailAdmin);
 
 }

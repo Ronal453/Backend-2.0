@@ -32,8 +32,11 @@ public class AdminReporteController {
 
     @GetMapping
     @PreAuthorize("hasRole('ADMINISTRADOR')")
-    public ResponseEntity<ReporteResponse> obtenerReporte() {
-        var reporte = reportesUseCase.obtenerReporte();
+    public ResponseEntity<ReporteResponse> obtenerReporte(
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate fechaInicio,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate fechaFin
+    ) {
+        var reporte = reportesUseCase.obtenerReporte(fechaInicio, fechaFin);
         return ResponseEntity.ok(ReporteResponse.from(reporte));
     }
 

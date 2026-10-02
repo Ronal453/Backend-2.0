@@ -24,8 +24,8 @@ public class LoteJpaAdapter implements LoteRepositoryPort, HistorialEstadoLoteRe
     private final LoteMapper mapper;
 
     @Override
-    public Page<LoteProduccion> buscarConFiltros(Long idZona, String estadoLote, Pageable pageable) {
-        return loteRepo.buscarConFiltros(idZona, estadoLote, pageable)
+    public Page<LoteProduccion> buscarConFiltros(Long idZona, String estadoLote, String termino, Pageable pageable) {
+        return loteRepo.buscarConFiltros(idZona, estadoLote, termino, pageable)
                 .map(mapper::toDomain);
     }
 
@@ -62,7 +62,7 @@ public class LoteJpaAdapter implements LoteRepositoryPort, HistorialEstadoLoteRe
 
     @Override
     public long contarLotesActivosPorZona(Long idZona) {
-        return loteRepo.countByIdZonaAndEstadoLoteNot(idZona, "DESCARTADO");
+        return loteRepo.countByIdZonaAndEstadoLoteNotIn(idZona, List.of("DESCARTADO", "EN_TIENDA"));
     }
 
     @Override
@@ -72,7 +72,7 @@ public class LoteJpaAdapter implements LoteRepositoryPort, HistorialEstadoLoteRe
 
     @Override
     public List<LoteProduccion> buscarLotesActivosPorZona(Long idZona) {
-        return loteRepo.findByIdZonaAndEstadoLoteNotOrderByFechaSiembraDesc(idZona, "DESCARTADO")
+        return loteRepo.findByIdZonaAndEstadoLoteNotInOrderByFechaSiembraDesc(idZona, List.of("DESCARTADO", "EN_TIENDA"))
                 .stream()
                 .map(mapper::toDomain)
                 .toList();

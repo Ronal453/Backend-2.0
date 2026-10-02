@@ -5,7 +5,7 @@ import java.time.LocalDate;
 
 public interface ObtenerReportesUseCase {
 
-    ReporteVentas obtenerReporte();
+    ReporteVentas obtenerReporte(LocalDate fechaInicio, LocalDate fechaFin);
 
     /**
      * Genera un CSV (bytes UTF-8 con BOM) con el detalle de pedidos dentro
