@@ -125,15 +125,15 @@ public class AdminReporteService implements ObtenerReportesUseCase {
 
         StringBuilder csv = new StringBuilder();
         csv.append('\uFEFF'); // BOM UTF-8 para que Excel muestre bien tildes/ñ
-        csv.append("Numero de pedido,Fecha,Cliente,Correo,Estado,Total\n");
+        csv.append("Numero de pedido;Fecha;Cliente;Correo;Estado;Total\n");
 
         for (Pedido p : pedidos) {
-            csv.append(csvEscape(p.getNumeroPedido())).append(',')
+            csv.append(csvEscape(p.getNumeroPedido())).append(';')
                .append(p.getFechaPedido() != null ? p.getFechaPedido().format(FORMATO_FECHA_CSV) : "")
-               .append(',')
-               .append(csvEscape(p.getNombreCliente())).append(',')
-               .append(csvEscape(p.getEmailCliente())).append(',')
-               .append(csvEscape(p.getEstadoDescripcion())).append(',')
+               .append(';')
+               .append(csvEscape(p.getNombreCliente())).append(';')
+               .append(csvEscape(p.getEmailCliente())).append(';')
+               .append(csvEscape(p.getEstadoDescripcion())).append(';')
                .append(p.getTotal() != null ? p.getTotal().toPlainString() : "0")
                .append('\n');
         }
@@ -143,7 +143,7 @@ public class AdminReporteService implements ObtenerReportesUseCase {
 
     private String csvEscape(String valor) {
         if (valor == null) return "";
-        if (valor.contains(",") || valor.contains("\"") || valor.contains("\n")) {
+        if (valor.contains(";") || valor.contains("\"") || valor.contains("\n")) {
             return "\"" + valor.replace("\"", "\"\"") + "\"";
         }
         return valor;
