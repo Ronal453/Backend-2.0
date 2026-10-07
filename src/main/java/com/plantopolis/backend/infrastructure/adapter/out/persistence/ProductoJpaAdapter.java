@@ -67,9 +67,9 @@ public class ProductoJpaAdapter implements ProductoRepositoryPort {
 
     @Override
     public Page<Producto> buscarTodosAdmin(
-            String nombre, Long idCategoria, Long idTipo, Pageable pageable) {
+            String nombre, Long idCategoria, Long idTipo, Boolean activo, Pageable pageable) {
         return productoRepo
-                .buscarTodosAdmin(nombre, idCategoria, idTipo, pageable)
+                .buscarTodosAdmin(nombre, idCategoria, idTipo, activo, pageable)
                 .map(mapper::toDomain);
     }
 

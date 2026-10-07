@@ -19,8 +19,8 @@ public class AdminProductoService implements GestionarProductosAdminUseCase {
 
     @Override
     public Page<Producto> listarTodos(String nombre, Long idCategoria,
-                                      Long idTipo, Pageable pageable) {
-        return productoRepository.buscarTodosAdmin(nombre, idCategoria, idTipo, pageable);
+                                      Long idTipo, Boolean activo, Pageable pageable) {
+        return productoRepository.buscarTodosAdmin(nombre, idCategoria, idTipo, activo, pageable);
     }
 
     @Override

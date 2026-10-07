@@ -37,11 +37,13 @@ public interface ProductoJpaRepository extends JpaRepository<ProductoEntity, Lon
                LOWER(p.nombreProducto) LIKE LOWER(CONCAT('%', :nombre, '%')))
           AND (:idCategoria IS NULL OR p.idCategoria = :idCategoria)
           AND (:idTipo IS NULL OR p.idTipo = :idTipo)
+          AND (:activo IS NULL OR p.activo = :activo)
     """)
     Page<ProductoEntity> buscarTodosAdmin(
             @Param("nombre") String nombre,
             @Param("idCategoria") Long idCategoria,
             @Param("idTipo") Long idTipo,
+            @Param("activo") Boolean activo,
             Pageable pageable
     );
 

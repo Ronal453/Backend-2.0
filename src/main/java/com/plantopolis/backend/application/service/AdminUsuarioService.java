@@ -90,10 +90,33 @@ public class AdminUsuarioService implements GestionarUsuariosAdminUseCase {
     }
 
     private String generarPasswordTemporal() {
+        String mayusculas = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+        String minusculas = "abcdefghijklmnopqrstuvwxyz";
+        String numeros = "0123456789";
+        String especiales = "@$!%*?&";
+        String todos = mayusculas + minusculas + numeros + especiales;
+
         StringBuilder sb = new StringBuilder(LONGITUD_PASSWORD_TEMPORAL);
-        for (int i = 0; i < LONGITUD_PASSWORD_TEMPORAL; i++) {
-            sb.append(ALFABETO_PASSWORD.charAt(RANDOM.nextInt(ALFABETO_PASSWORD.length())));
+        
+        // Garantizar al menos un caracter de cada grupo obligatorio
+        sb.append(mayusculas.charAt(RANDOM.nextInt(mayusculas.length())));
+        sb.append(numeros.charAt(RANDOM.nextInt(numeros.length())));
+        sb.append(especiales.charAt(RANDOM.nextInt(especiales.length())));
+        
+        // Rellenar el resto hasta LONGITUD_PASSWORD_TEMPORAL
+        for (int i = 3; i < LONGITUD_PASSWORD_TEMPORAL; i++) {
+            sb.append(todos.charAt(RANDOM.nextInt(todos.length())));
         }
-        return sb.toString();
+        
+        // Mezclar los caracteres para que el orden no sea predecible
+        char[] password = sb.toString().toCharArray();
+        for (int i = password.length - 1; i > 0; i--) {
+            int index = RANDOM.nextInt(i + 1);
+            char temp = password[index];
+            password[index] = password[i];
+            password[i] = temp;
+        }
+        
+        return new String(password);
     }
 }

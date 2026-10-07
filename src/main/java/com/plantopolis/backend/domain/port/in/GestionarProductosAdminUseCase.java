@@ -9,7 +9,7 @@ import java.util.List;
 public interface GestionarProductosAdminUseCase {
 
     Page<Producto> listarTodos(String nombre, Long idCategoria,
-                               Long idTipo, Pageable pageable);
+                               Long idTipo, Boolean activo, Pageable pageable);
 
     Producto crear(Producto producto);
 

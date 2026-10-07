@@ -38,13 +38,14 @@ public class AdminProductoController {
             @RequestParam(required = false) String nombre,
             @RequestParam(required = false) Long idCategoria,
             @RequestParam(required = false) Long idTipo,
+            @RequestParam(required = false) Boolean activo,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size,
             @RequestParam(defaultValue = "nombreProducto") String sort
     ) {
         var pageable = PageRequest.of(page, size, Sort.by(sort).ascending());
         return ResponseEntity.ok(
-                adminProductoUseCase.listarTodos(nombre, idCategoria, idTipo, pageable)
+                adminProductoUseCase.listarTodos(nombre, idCategoria, idTipo, activo, pageable)
                         .map(ProductoResponse::from)
         );
     }

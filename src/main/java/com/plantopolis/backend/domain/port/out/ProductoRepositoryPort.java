@@ -28,7 +28,7 @@ public interface ProductoRepositoryPort {
     boolean existePorId(Long id);
 
     Page<Producto> buscarTodosAdmin(
-            String nombre, Long idCategoria, Long idTipo, Pageable pageable
+            String nombre, Long idCategoria, Long idTipo, Boolean activo, Pageable pageable
     );
 
     Long contarActivos();
