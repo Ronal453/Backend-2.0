@@ -49,6 +49,14 @@ public class GlobalExceptionHandler {
                 .body(errorBody(ex.getMessage(), 409));
     }
 
+    @ExceptionHandler(org.springframework.web.multipart.MaxUploadSizeExceededException.class)
+    public ResponseEntity<Map<String, Object>> handleMaxSizeException(
+            org.springframework.web.multipart.MaxUploadSizeExceededException exc) {
+        return ResponseEntity
+                .status(HttpStatus.PAYLOAD_TOO_LARGE)
+                .body(errorBody("El archivo supera el tamaño máximo permitido (50 MB).", 413));
+    }
+
     @ExceptionHandler(RuntimeException.class)
     public ResponseEntity<Map<String, Object>> handleRuntime(
             RuntimeException ex) {
