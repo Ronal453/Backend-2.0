@@ -77,4 +77,22 @@ public class LoteJpaAdapter implements LoteRepositoryPort, HistorialEstadoLoteRe
                 .map(mapper::toDomain)
                 .toList();
     }
+
+    /** {@inheritDoc} */
+    @Override
+    public List<LoteProduccion> buscarLotesPorProveedor(Long idProveedor) {
+        return loteRepo.findByIdProveedorOrderByFechaSiembraDesc(idProveedor)
+                .stream()
+                .map(mapper::toDomain)
+                .toList();
+    }
+
+    /** {@inheritDoc} */
+    @Override
+    public List<LoteProduccion> buscarLotesConProveedor() {
+        return loteRepo.findByIdProveedorIsNotNull()
+                .stream()
+                .map(mapper::toDomain)
+                .toList();
+    }
 }

@@ -14,4 +14,10 @@ public interface LoteRepositoryPort {
     long contarLotesActivosPorZona(Long idZona);
     long contarPlantasActivasPorZona(Long idZona);
     List<LoteProduccion> buscarLotesActivosPorZona(Long idZona);
+
+    /** HU35: todos los lotes (históricos) asociados a un proveedor, más recientes primero. */
+    List<LoteProduccion> buscarLotesPorProveedor(Long idProveedor);
+
+    /** HU35: todos los lotes que tienen proveedor asignado; base del reporte agregado. */
+    List<LoteProduccion> buscarLotesConProveedor();
 }

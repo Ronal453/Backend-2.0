@@ -22,6 +22,8 @@ public class LoteMapper {
                 .idZona(entity.getIdZona())
                 .nombreZona(entity.getZona() != null ? entity.getZona().getNombre() : null)
                 .idProveedor(entity.getIdProveedor())
+                // HU35: nombre del proveedor de origen para trazabilidad en listados
+                .nombreProveedor(entity.getProveedor() != null ? entity.getProveedor().getNombre() : null)
                 .idProducto(entity.getIdProducto())
                 .nombreProducto(entity.getProducto() != null ? entity.getProducto().getNombreProducto() : null)
                 .esVinculado(entity.getEsVinculado())

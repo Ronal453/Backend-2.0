@@ -3,11 +3,13 @@ package com.plantopolis.backend.application.service;
 import com.plantopolis.backend.domain.model.HistorialEstadoLote;
 import com.plantopolis.backend.domain.model.LoteProduccion;
 import com.plantopolis.backend.domain.model.Producto;
+import com.plantopolis.backend.domain.model.Proveedor;
 import com.plantopolis.backend.domain.model.Zona;
 import com.plantopolis.backend.domain.port.in.GestionarLotesAdminUseCase;
 import com.plantopolis.backend.domain.port.out.HistorialEstadoLoteRepositoryPort;
 import com.plantopolis.backend.domain.port.out.LoteRepositoryPort;
 import com.plantopolis.backend.domain.port.out.ProductoRepositoryPort;
+import com.plantopolis.backend.domain.port.out.ProveedorRepositoryPort;
 import com.plantopolis.backend.domain.port.out.ZonaRepositoryPort;
 import com.plantopolis.backend.domain.port.out.UsuarioRepositoryPort;
 import lombok.RequiredArgsConstructor;
@@ -27,6 +29,7 @@ public class AdminLoteService implements GestionarLotesAdminUseCase {
     private final HistorialEstadoLoteRepositoryPort historialEstadoLoteRepository;
 
     private final UsuarioRepositoryPort usuarioRepository;
+    private final ProveedorRepositoryPort proveedorRepository;
 
     private static final String ESTADO_GERMINANDO = "GERMINANDO";
     private static final String ESTADO_LISTO_VENTA = "LISTO_PARA_VENTA";
@@ -47,6 +50,11 @@ public class AdminLoteService implements GestionarLotesAdminUseCase {
         if (zona.getCapacidadMaxima() != null && lotesEnZona >= zona.getCapacidadMaxima()) {
             throw new IllegalStateException("La zona no tiene capacidad disponible para más lotes");
         }
+
+        // HU35: el proveedor es opcional, pero si se envía debe existir y estar activo
+        Proveedor proveedorAsignado = lote.getIdProveedor() != null
+                ? validarProveedorAsignable(lote.getIdProveedor())
+                : null;
 
         String estadoInicial = (lote.getEstadoLote() != null && !lote.getEstadoLote().trim().isEmpty()) 
                                 ? lote.getEstadoLote().trim().toUpperCase() 
@@ -79,6 +87,11 @@ public class AdminLoteService implements GestionarLotesAdminUseCase {
                 .fechaCambio(loteGuardado.getFechaCreacion())
                 .build();
         historialEstadoLoteRepository.guardar(historial);
+
+        // La relación JPA de solo lectura puede no refrescarse en el mismo contexto: se resuelve el nombre explícitamente
+        if (proveedorAsignado != null) {
+            loteGuardado.setNombreProveedor(proveedorAsignado.getNombre());
+        }
 
         return loteGuardado;
     }
@@ -134,5 +147,48 @@ public class AdminLoteService implements GestionarLotesAdminUseCase {
         lote.setFechaVinculacion(LocalDateTime.now(ZoneId.of("America/Bogota")));
 
         return loteRepository.guardar(lote);
+    }
+
+    /**
+     * HU35: Asocia o desasocia el proveedor de origen de un lote ya registrado.
+     * <p>
+     * Se permite en cualquier estado del lote (incluido EN_TIENDA o DESCARTADO) porque
+     * corregir la procedencia no altera stock ni ciclo biológico; solo mejora la trazabilidad.
+     * </p>
+     *
+     * @param idLote      lote a actualizar
+     * @param idProveedor proveedor activo a asignar, o {@code null} para quitar la asociación
+     * @return lote actualizado con el nombre del proveedor resuelto
+     */
+    @Override
+    @Transactional
+    public LoteProduccion asignarProveedorALote(Long idLote, Long idProveedor) {
+        LoteProduccion lote = loteRepository.buscarPorId(idLote)
+                .orElseThrow(() -> new IllegalArgumentException("Lote no encontrado"));
+
+        Proveedor proveedor = idProveedor != null ? validarProveedorAsignable(idProveedor) : null;
+
+        lote.setIdProveedor(idProveedor);
+        LoteProduccion actualizado = loteRepository.guardar(lote);
+        // Resolver explícitamente el nombre (o limpiarlo) para que la respuesta refleje el cambio inmediato
+        actualizado.setNombreProveedor(proveedor != null ? proveedor.getNombre() : null);
+        return actualizado;
+    }
+
+    /**
+     * Verifica que el proveedor exista y esté activo antes de vincularlo a un lote.
+     *
+     * @param idProveedor identificador del proveedor
+     * @return proveedor validado
+     * @throws IllegalArgumentException si no existe
+     * @throws IllegalStateException    si está desactivado
+     */
+    private Proveedor validarProveedorAsignable(Long idProveedor) {
+        Proveedor proveedor = proveedorRepository.buscarPorId(idProveedor)
+                .orElseThrow(() -> new IllegalArgumentException("Proveedor no encontrado con ID: " + idProveedor));
+        if (!Boolean.TRUE.equals(proveedor.getActivo())) {
+            throw new IllegalStateException("El proveedor '" + proveedor.getNombre() + "' está inactivo y no puede asignarse a lotes");
+        }
+        return proveedor;
     }
 }

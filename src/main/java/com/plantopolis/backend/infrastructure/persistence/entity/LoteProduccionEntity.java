@@ -62,4 +62,9 @@ public class LoteProduccionEntity {
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "ID_PRODUCTO", insertable = false, updatable = false)
     private ProductoEntity producto;
+
+    /** HU35: relación de solo lectura para exponer el nombre del proveedor; la FK se escribe vía {@code idProveedor}. */
+    @ManyToOne(fetch = FetchType.EAGER)
+    @JoinColumn(name = "ID_PROVEEDOR", insertable = false, updatable = false)
+    private ProveedorEntity proveedor;
 }

@@ -21,4 +21,12 @@ public interface GestionarLotesAdminUseCase {
      */
     LoteProduccion vincularLoteConProducto(Long idLote, Long idProducto, String emailAdmin);
 
+    /**
+     * HU35: Asociar (o desasociar) un lote existente con su proveedor de origen.
+     * @param idLote identificador del lote
+     * @param idProveedor proveedor a asignar; {@code null} elimina la asociación (campo opcional)
+     * @return LoteProduccion actualizado
+     */
+    LoteProduccion asignarProveedorALote(Long idLote, Long idProveedor);
+
 }

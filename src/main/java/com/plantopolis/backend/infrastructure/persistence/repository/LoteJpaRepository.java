@@ -35,4 +35,10 @@ public interface LoteJpaRepository extends JpaRepository<LoteProduccionEntity, L
           AND UPPER(l.estadoLote) NOT IN ('DESCARTADO', 'EN_TIENDA')
     """)
     long sumarPlantasActivasPorZona(@Param("idZona") Long idZona);
+
+    /** HU35: lotes históricos de un proveedor, más recientes primero. */
+    java.util.List<LoteProduccionEntity> findByIdProveedorOrderByFechaSiembraDesc(Long idProveedor);
+
+    /** HU35: todos los lotes con proveedor asignado (base del reporte agregado). */
+    java.util.List<LoteProduccionEntity> findByIdProveedorIsNotNull();
 }

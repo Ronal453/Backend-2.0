@@ -2,6 +2,7 @@ package com.plantopolis.backend.infrastructure.adapter.in.web;
 
 import com.plantopolis.backend.domain.model.LoteProduccion;
 import com.plantopolis.backend.domain.port.in.GestionarLotesAdminUseCase;
+import com.plantopolis.backend.infrastructure.adapter.in.web.dto.AsignarProveedorLoteRequest;
 import com.plantopolis.backend.infrastructure.adapter.in.web.dto.CrearLoteRequest;
 import com.plantopolis.backend.infrastructure.adapter.in.web.dto.LoteResponse;
 import com.plantopolis.backend.infrastructure.adapter.in.web.dto.VincularLoteRequest;
@@ -81,5 +82,27 @@ public class AdminLoteController {
         } catch (IllegalStateException e) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, e.getMessage(), e); // 409 para HU16b
         }
+    }
+
+    /**
+     * HU35: Asocia o quita el proveedor de origen de un lote existente.
+     *
+     * @param id      identificador del lote
+     * @param request cuerpo con {@code idProveedor} (null para desasociar)
+     * @return lote actualizado
+     */
+    @Operation(
+            summary = "Asignar proveedor a un lote",
+            description = "Asocia un proveedor activo al lote o lo desasocia enviando idProveedor = null."
+    )
+    @ApiResponse(responseCode = "200", description = "Proveedor del lote actualizado")
+    @ApiResponse(responseCode = "409", description = "El proveedor está inactivo")
+    @PatchMapping("/{id}/proveedor")
+    public ResponseEntity<LoteResponse> asignarProveedor(
+            @PathVariable Long id,
+            @RequestBody AsignarProveedorLoteRequest request
+    ) {
+        LoteProduccion actualizado = gestionarLotesAdminUseCase.asignarProveedorALote(id, request.idProveedor());
+        return ResponseEntity.ok(LoteResponse.from(actualizado));
     }
 }
