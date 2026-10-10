@@ -18,6 +18,7 @@ public class LoteProduccion {
     private String especie;
     private Integer cantidadInicial;
     private Integer cantidadActual;
+    private Integer cantidadMerma;
     private LocalDate fechaSiembra;
     private String estadoLote;
     private Long idZona;

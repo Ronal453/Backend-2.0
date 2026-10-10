@@ -31,6 +31,9 @@ public class LoteProduccionEntity {
     @Column(name = "CANTIDAD_ACTUAL", nullable = false)
     private Integer cantidadActual;
 
+    @Column(name = "CANTIDAD_MERMA", nullable = false)
+    private Integer cantidadMerma;
+
     @Column(name = "FECHA_SIEMBRA", nullable = false)
     private LocalDate fechaSiembra;
 

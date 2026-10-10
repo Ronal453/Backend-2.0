@@ -79,7 +79,25 @@ public class UsuarioService implements RegistrarUsuarioUseCase, LoginUseCase, Lo
                 : "CLIENTE";
 
         if (usuario.getUltimoToken() != null && jwtUtil.estaVigente(usuario.getUltimoToken())) {
-            throw new RuntimeException("Ya se encuentra una sesión activa. Por favor, espere un tiempo a que expire o cierre la sesión activa.");
+            boolean isSameSession = false;
+            org.springframework.web.context.request.ServletRequestAttributes attributes = 
+                (org.springframework.web.context.request.ServletRequestAttributes) org.springframework.web.context.request.RequestContextHolder.getRequestAttributes();
+            
+            if (attributes != null) {
+                jakarta.servlet.http.HttpServletRequest request = attributes.getRequest();
+                if (request.getCookies() != null) {
+                    for (jakarta.servlet.http.Cookie cookie : request.getCookies()) {
+                        if ("jwt_token".equals(cookie.getName()) && cookie.getValue().equals(usuario.getUltimoToken())) {
+                            isSameSession = true;
+                            break;
+                        }
+                    }
+                }
+            }
+            
+            if (!isSameSession) {
+                throw new RuntimeException("Ya se encuentra una sesión activa. Por favor, espere un tiempo a que expire o cierre la sesión activa.");
+            }
         }
 
         String token = jwtUtil.generarToken(userDetails, rol);

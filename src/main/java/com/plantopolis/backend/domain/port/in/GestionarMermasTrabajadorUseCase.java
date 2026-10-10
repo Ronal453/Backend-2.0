@@ -10,4 +10,5 @@ public interface GestionarMermasTrabajadorUseCase {
     List<CausaMerma> listarCausasMerma();
     Merma registrarMerma(Long idLote, Long idCausa, Integer cantidadPerdida, LocalDate fechaMerma, String observaciones, String emailUsuario);
     List<Merma> listarMermasRecientes(int limite);
+    List<Merma> listarMermasPorRango(LocalDate fechaInicio, LocalDate fechaFin);
 }

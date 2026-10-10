@@ -67,6 +67,7 @@ public class AdminLoteService implements GestionarLotesAdminUseCase {
         // Valores iniciales
         lote.setEstadoLote(estadoInicial);
         lote.setCantidadActual(lote.getCantidadInicial());
+        lote.setCantidadMerma(0);
         lote.setEsVinculado(false);
         lote.setFechaCreacion(LocalDateTime.now(ZoneId.of("America/Bogota")));
         

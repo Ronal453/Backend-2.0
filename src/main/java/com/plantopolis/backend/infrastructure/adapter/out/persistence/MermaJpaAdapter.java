@@ -51,4 +51,12 @@ public class MermaJpaAdapter implements MermaRepositoryPort, CausaMermaRepositor
                 .map(mapper::toDomain)
                 .toList();
     }
+
+    @Override
+    public List<Merma> listarPorRango(java.time.LocalDate fechaInicio, java.time.LocalDate fechaFin) {
+        return mermaRepo.buscarPorRangoFechas(fechaInicio, fechaFin)
+                .stream()
+                .map(mapper::toDomain)
+                .toList();
+    }
 }

@@ -18,5 +18,6 @@ public record RegistrarMermaRequest(
 
         LocalDate fechaMerma,
 
+        @jakarta.validation.constraints.NotBlank(message = "Las observaciones (detalles) son obligatorias")
         String observaciones
 ) {}

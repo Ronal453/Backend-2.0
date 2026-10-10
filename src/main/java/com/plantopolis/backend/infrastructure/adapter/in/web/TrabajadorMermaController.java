@@ -63,14 +63,23 @@ public class TrabajadorMermaController {
         return ResponseEntity.status(HttpStatus.CREATED).body(MermaResponse.from(merma));
     }
 
-    @Operation(summary = "Listar mermas recientes")
+    @Operation(summary = "Listar mermas recientes o por rango")
     @GetMapping
-    public ResponseEntity<List<MermaResponse>> listarRecientes(
-            @RequestParam(defaultValue = "20") int limite
+    public ResponseEntity<List<MermaResponse>> listarMermas(
+            @RequestParam(defaultValue = "20") int limite,
+            @RequestParam(required = false) @org.springframework.format.annotation.DateTimeFormat(iso = org.springframework.format.annotation.DateTimeFormat.ISO.DATE) java.time.LocalDate fechaInicio,
+            @RequestParam(required = false) @org.springframework.format.annotation.DateTimeFormat(iso = org.springframework.format.annotation.DateTimeFormat.ISO.DATE) java.time.LocalDate fechaFin
     ) {
-        var lista = mermasUseCase.listarMermasRecientes(limite).stream()
-                .map(MermaResponse::from)
-                .toList();
+        List<MermaResponse> lista;
+        if (fechaInicio != null || fechaFin != null) {
+            lista = mermasUseCase.listarMermasPorRango(fechaInicio, fechaFin).stream()
+                    .map(MermaResponse::from)
+                    .toList();
+        } else {
+            lista = mermasUseCase.listarMermasRecientes(limite).stream()
+                    .map(MermaResponse::from)
+                    .toList();
+        }
         return ResponseEntity.ok(lista);
     }
 }

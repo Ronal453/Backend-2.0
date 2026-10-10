@@ -37,6 +37,10 @@ public class TrabajadorMermaService implements GestionarMermasTrabajadorUseCase 
     public Merma registrarMerma(Long idLote, Long idCausa, Integer cantidadPerdida,
                                 LocalDate fechaMerma, String observaciones, String emailUsuario) {
 
+        if (observaciones == null || observaciones.trim().isEmpty()) {
+            throw new RuntimeException("Las observaciones (detalles) son obligatorias para describir la causa de la merma.");
+        }
+
         if (cantidadPerdida == null || cantidadPerdida <= 0) {
             throw new RuntimeException("La cantidad perdida debe ser mayor a cero.");
         }
@@ -59,6 +63,9 @@ public class TrabajadorMermaService implements GestionarMermasTrabajadorUseCase 
 
         int nuevaCantidadActual = lote.getCantidadActual() - cantidadPerdida;
         lote.setCantidadActual(nuevaCantidadActual);
+        
+        int nuevaCantidadMerma = (lote.getCantidadMerma() != null ? lote.getCantidadMerma() : 0) + cantidadPerdida;
+        lote.setCantidadMerma(nuevaCantidadMerma);
 
         if (nuevaCantidadActual == 0 && !"DESCARTADO".equalsIgnoreCase(lote.getEstadoLote())) {
             String estadoAnterior = lote.getEstadoLote();
@@ -93,5 +100,10 @@ public class TrabajadorMermaService implements GestionarMermasTrabajadorUseCase 
     @Override
     public List<Merma> listarMermasRecientes(int limite) {
         return mermaRepo.listarRecientes(limite > 0 ? limite : 20);
+    }
+
+    @Override
+    public List<Merma> listarMermasPorRango(LocalDate fechaInicio, LocalDate fechaFin) {
+        return mermaRepo.listarPorRango(fechaInicio, fechaFin);
     }
 }
