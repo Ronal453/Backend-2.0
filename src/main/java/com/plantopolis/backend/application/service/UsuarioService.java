@@ -47,11 +47,13 @@ public class UsuarioService implements RegistrarUsuarioUseCase, LoginUseCase, Lo
             throw new RuntimeException("El email ya está registrado: " + email);
         }
 
+        Long idRolCliente = usuarioRepository.obtenerIdRol("CLIENTE");
+
         Usuario nuevo = Usuario.builder()
                 .nombreCompleto(nombre)
                 .correo(email)
                 .contrasenaHash(passwordEncoder.encode(password))
-                .idRol(ROL_CLIENTE)
+                .idRol(idRolCliente)
                 .telefono(telefono)
                 .direccion(direccion)
                 .fechaRegistro(LocalDateTime.now(ZONA_BOGOTA))
@@ -76,7 +78,14 @@ public class UsuarioService implements RegistrarUsuarioUseCase, LoginUseCase, Lo
                 ? usuario.getRolNombre()
                 : "CLIENTE";
 
-        return jwtUtil.generarToken(userDetails, rol);
+        if (usuario.getUltimoToken() != null && jwtUtil.estaVigente(usuario.getUltimoToken())) {
+            throw new RuntimeException("Ya se encuentra una sesión activa. Por favor, espere un tiempo a que expire o cierre la sesión activa.");
+        }
+
+        String token = jwtUtil.generarToken(userDetails, rol);
+        usuario.setUltimoToken(token);
+        usuarioRepository.guardar(usuario);
+        return token;
     }
 
     private GoogleIdToken.Payload verificarGoogleToken(String googleIdToken) {
@@ -116,11 +125,13 @@ public class UsuarioService implements RegistrarUsuarioUseCase, LoginUseCase, Lo
         Usuario usuario = usuarioRepository.buscarPorEmail(email).orElseGet(() -> {
             log.info("Creando nuevo usuario vía Google Sign-In para email: {}", email);
             String randomPassword = UUID.randomUUID().toString();
+            Long idRolCliente = usuarioRepository.obtenerIdRol("CLIENTE");
+            
             Usuario nuevo = Usuario.builder()
                     .nombreCompleto(nombre != null ? nombre : email)
                     .correo(email)
                     .contrasenaHash(passwordEncoder.encode(randomPassword))
-                    .idRol(ROL_CLIENTE)
+                    .idRol(idRolCliente)
                     .fechaRegistro(LocalDateTime.now(ZONA_BOGOTA))
                     .activo(true)
                     .fechaActualizacion(LocalDateTime.now(ZONA_BOGOTA))
@@ -134,7 +145,15 @@ public class UsuarioService implements RegistrarUsuarioUseCase, LoginUseCase, Lo
 
         var userDetails = userDetailsService.loadUserByUsername(email);
         String rol = (usuario.getRolNombre() != null) ? usuario.getRolNombre() : "CLIENTE";
+        
+        if (usuario.getUltimoToken() != null && jwtUtil.estaVigente(usuario.getUltimoToken())) {
+            throw new RuntimeException("Ya se encuentra una sesión activa. Por favor, espere un tiempo a que expire o cierre la sesión activa.");
+        }
+        
         String token = jwtUtil.generarToken(userDetails, rol);
+
+        usuario.setUltimoToken(token);
+        usuarioRepository.guardar(usuario);
 
         return new LoginGoogleResult(token, email, rol);
     }
@@ -170,6 +189,9 @@ public class UsuarioService implements RegistrarUsuarioUseCase, LoginUseCase, Lo
         var userDetails = userDetailsService.loadUserByUsername(email);
         String rol = (guardado.getRolNombre() != null) ? guardado.getRolNombre() : "CLIENTE";
         String token = jwtUtil.generarToken(userDetails, rol);
+
+        guardado.setUltimoToken(token);
+        usuarioRepository.guardar(guardado);
 
         return new LoginGoogleResult(token, email, rol);
     }

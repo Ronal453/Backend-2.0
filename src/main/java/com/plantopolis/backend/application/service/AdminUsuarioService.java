@@ -71,11 +71,13 @@ public class AdminUsuarioService implements GestionarUsuariosAdminUseCase {
             throw new RuntimeException("El email ya está registrado: " + correo);
         }
 
+        Long idRolTrabajador = usuarioRepository.obtenerIdRol("TRABAJADOR");
+
         Usuario nuevo = Usuario.builder()
                 .nombreCompleto(nombreCompleto)
                 .correo(correo)
                 .contrasenaHash(passwordEncoder.encode(passwordInicial))
-                .idRol(ROL_TRABAJADOR)
+                .idRol(idRolTrabajador)
                 .activo(true)
                 .fechaRegistro(LocalDateTime.now(ZONA_BOGOTA))
                 .fechaActualizacion(LocalDateTime.now(ZONA_BOGOTA))

@@ -39,6 +39,9 @@ public class UsuarioEntity {
     @Column(name = "ACTIVO", nullable = false)
     private Boolean activo;
 
+    @Column(name = "ULTIMO_TOKEN", length = 500)
+    private String ultimoToken;
+
     @Column(name = "FECHA_REGISTRO")
     private LocalDateTime fechaRegistro;
 

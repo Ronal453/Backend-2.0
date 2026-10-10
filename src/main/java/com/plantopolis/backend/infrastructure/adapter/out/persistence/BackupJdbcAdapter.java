@@ -237,6 +237,10 @@ public class BackupJdbcAdapter implements BackupRepositoryPort {
                     throw e;
                 }
             }
+            
+            // 2.5 Limpiar tokens después de la restauración para evitar lockout de seguridad (doble sesión)
+            jdbcTemplate.update("UPDATE \"USUARIO\" SET \"ULTIMO_TOKEN\" = NULL");
+            
             return null; // Commit automatico al salir del template
         });
 

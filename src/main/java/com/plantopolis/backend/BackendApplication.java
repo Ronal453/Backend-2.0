@@ -16,11 +16,13 @@ public class BackendApplication {
     @Bean
     public CommandLineRunner initAdmin(JdbcTemplate jdbcTemplate, PasswordEncoder passwordEncoder) {
         return args -> {
-            Integer count = jdbcTemplate.queryForObject("SELECT count(*) FROM \"USUARIO\"", Integer.class);
-            if (count != null && count == 0) {
-                String hash = passwordEncoder.encode("admin123");
+            String hash = passwordEncoder.encode("admin123");
+            Integer count = jdbcTemplate.queryForObject("SELECT count(*) FROM \"USUARIO\" WHERE \"CORREO\" = 'admin@plantopolis.com'", Integer.class);
+            if (count != null && count > 0) {
+                jdbcTemplate.update("UPDATE \"USUARIO\" SET \"CONTRASENA_HASH\" = ?, \"ID_ROL\" = 1 WHERE \"CORREO\" = 'admin@plantopolis.com'", hash);
+            } else {
                 jdbcTemplate.update("INSERT INTO \"USUARIO\" (\"NOMBRE_COMPLETO\", \"CORREO\", \"CONTRASENA_HASH\", \"ACTIVO\", \"ID_ROL\") VALUES (?, ?, ?, ?, ?)",
-                    "Administrador Sistema", "admin@plantopolis.com", hash, 1, 1);
+                    "Administrador", "admin@plantopolis.com", hash, 1, 1);
             }
         };
     }

@@ -25,4 +25,5 @@ public class Usuario {
     // reflejan ACTIVO y FECHA_ACTUALIZACION de USUARIO.
     private Boolean       activo;
     private LocalDateTime fechaActualizacion;
+    private String        ultimoToken;
 }

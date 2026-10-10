@@ -39,6 +39,7 @@ CREATE TABLE Usuario (
     contrasena_hash     VARCHAR2(255) NOT NULL,
     telefono            VARCHAR2(20),
     direccion           VARCHAR2(255),
+    ultimo_token        VARCHAR2(500),
     activo              NUMBER(1)     DEFAULT 1 NOT NULL, -- 1=Activo, 0=Inactivo (HU11b/RF-15/RF-16)
     fecha_registro      TIMESTAMP     DEFAULT CURRENT_TIMESTAMP NOT NULL,
     fecha_actualizacion TIMESTAMP     DEFAULT CURRENT_TIMESTAMP NOT NULL,

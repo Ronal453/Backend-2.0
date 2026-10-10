@@ -17,6 +17,8 @@ import org.springframework.web.filter.OncePerRequestFilter;
 import jakarta.servlet.http.Cookie;
 import java.io.IOException;
 
+import com.plantopolis.backend.domain.port.out.UsuarioRepositoryPort;
+
 @Slf4j
 @Component
 @RequiredArgsConstructor
@@ -24,6 +26,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
     private final JwtUtil jwtUtil;
     private final UserDetailsService userDetailsService;
+    private final UsuarioRepositoryPort usuarioRepository;
 
     @Override
     protected void doFilterInternal(
@@ -57,11 +60,16 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                 var userDetails = userDetailsService.loadUserByUsername(email);
 
                 if (jwtUtil.esValido(token, userDetails)) {
-                    var authToken = new UsernamePasswordAuthenticationToken(
-                            userDetails, null, userDetails.getAuthorities());
-                    authToken.setDetails(
-                            new WebAuthenticationDetailsSource().buildDetails(request));
-                    SecurityContextHolder.getContext().setAuthentication(authToken);
+                    var usuarioOpt = usuarioRepository.buscarPorEmail(email);
+                    if (usuarioOpt.isPresent() && token.equals(usuarioOpt.get().getUltimoToken())) {
+                        var authToken = new UsernamePasswordAuthenticationToken(
+                                userDetails, null, userDetails.getAuthorities());
+                        authToken.setDetails(
+                                new WebAuthenticationDetailsSource().buildDetails(request));
+                        SecurityContextHolder.getContext().setAuthentication(authToken);
+                    } else {
+                        log.warn("Doble sesión detectada o token superado para el usuario: {}", email);
+                    }
                 }
             }
         } catch (Exception e) {

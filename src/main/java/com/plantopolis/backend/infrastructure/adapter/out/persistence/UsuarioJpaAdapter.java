@@ -16,6 +16,7 @@ import java.util.Optional;
 public class UsuarioJpaAdapter implements UsuarioRepositoryPort {
 
     private final UsuarioJpaRepository jpaRepository;
+    private final com.plantopolis.backend.infrastructure.persistence.repository.RolJpaRepository rolJpaRepository;
     private final UsuarioMapper mapper;
 
     @Override
@@ -45,5 +46,12 @@ public class UsuarioJpaAdapter implements UsuarioRepositoryPort {
     public Page<Usuario> listarTodos(String nombre, Long idRol, Boolean activo, Pageable pageable) {
         return jpaRepository.buscarConFiltros(nombre, idRol, activo, pageable)
                 .map(mapper::toDomain);
+    }
+
+    @Override
+    public Long obtenerIdRol(String nombreRol) {
+        return rolJpaRepository.findByNombre(nombreRol)
+                .map(com.plantopolis.backend.infrastructure.persistence.entity.RolEntity::getIdRol)
+                .orElseThrow(() -> new RuntimeException("Rol no encontrado: " + nombreRol));
     }
 }

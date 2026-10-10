@@ -41,6 +41,8 @@ public class AuthController {
 
     //  Inyectamos JwtUtil para extraer el rol del token
     private final JwtUtil jwtUtil;
+    
+    private final com.plantopolis.backend.domain.port.out.UsuarioRepositoryPort usuarioRepository;
 
     @Value("${cookie.secure:false}")
     private boolean cookieSecure;
@@ -203,7 +205,14 @@ public class AuthController {
     }
 
     @PostMapping("/logout")
-    public ResponseEntity<Void> logout() {
+    public ResponseEntity<Void> logout(java.security.Principal principal) {
+        if (principal != null) {
+            usuarioRepository.buscarPorEmail(principal.getName()).ifPresent(usuario -> {
+                usuario.setUltimoToken(null);
+                usuarioRepository.guardar(usuario);
+            });
+        }
+        
         ResponseCookie clearCookie = ResponseCookie.from("jwt_token", "")
                 .httpOnly(true)
                 .secure(cookieSecure)

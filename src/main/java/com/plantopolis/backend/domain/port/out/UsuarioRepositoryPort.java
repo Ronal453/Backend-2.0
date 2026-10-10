@@ -18,4 +18,6 @@ public interface UsuarioRepositoryPort {
      * Sigue el mismo patrón que ProductoRepositoryPort.buscarTodosAdmin().
      */
     Page<Usuario> listarTodos(String nombre, Long idRol, Boolean activo, Pageable pageable);
+    
+    Long obtenerIdRol(String nombreRol);
 }

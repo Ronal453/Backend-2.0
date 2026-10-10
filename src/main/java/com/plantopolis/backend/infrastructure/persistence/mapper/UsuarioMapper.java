@@ -21,6 +21,7 @@ public class UsuarioMapper {
                 .rolNombre(entity.getRol() != null ? entity.getRol().getNombre() : null)
                 .activo(entity.getActivo())
                 .fechaActualizacion(entity.getFechaActualizacion())
+                .ultimoToken(entity.getUltimoToken())
                 .build();
     }
 
@@ -37,6 +38,7 @@ public class UsuarioMapper {
                 .fechaRegistro(domain.getFechaRegistro())
                 .activo(domain.getActivo())
                 .fechaActualizacion(domain.getFechaActualizacion())
+                .ultimoToken(domain.getUltimoToken())
                 .build();
     }
 }

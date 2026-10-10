@@ -60,6 +60,16 @@ public class JwtUtil {
         }
     }
 
+    public boolean estaVigente(String token) {
+        try {
+            return !estaExpirado(token);
+        } catch (io.jsonwebtoken.ExpiredJwtException e) {
+            return false;
+        } catch (JwtException | IllegalArgumentException e) {
+            return false;
+        }
+    }
+
     private boolean estaExpirado(String token) {
         return parsearClaims(token).getExpiration().before(new Date());
     }
