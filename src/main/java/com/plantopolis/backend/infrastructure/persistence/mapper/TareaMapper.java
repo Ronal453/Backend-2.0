@@ -3,11 +3,16 @@ package com.plantopolis.backend.infrastructure.persistence.mapper;
 import com.plantopolis.backend.domain.model.ComentarioTarea;
 import com.plantopolis.backend.domain.model.HistorialTarea;
 import com.plantopolis.backend.domain.model.Tarea;
+import com.plantopolis.backend.domain.model.TareaRecurrente;
 import com.plantopolis.backend.infrastructure.persistence.entity.ComentarioTareaEntity;
 import com.plantopolis.backend.infrastructure.persistence.entity.HistorialTareaEntity;
 import com.plantopolis.backend.infrastructure.persistence.entity.TareaEntity;
+import com.plantopolis.backend.infrastructure.persistence.entity.TareaRecurrenteEntity;
 import org.springframework.stereotype.Component;
 
+/**
+ * Mapeador entre entidades JPA y modelos de dominio del módulo de Tareas y Kanban.
+ */
 @Component
 public class TareaMapper {
 
@@ -18,6 +23,7 @@ public class TareaMapper {
                 .idTareaRecurrente(entity.getIdTareaRecurrente())
                 .tipoTarea(entity.getTipoTarea())
                 .prioridad(entity.getPrioridad())
+                .descripcion(entity.getDescripcion())
                 .estadoTarea(entity.getEstadoTarea())
                 .idZona(entity.getIdZona())
                 .nombreZona(entity.getZona() != null ? entity.getZona().getNombre() : null)
@@ -41,6 +47,7 @@ public class TareaMapper {
                 .idTareaRecurrente(domain.getIdTareaRecurrente())
                 .tipoTarea(domain.getTipoTarea())
                 .prioridad(domain.getPrioridad())
+                .descripcion(domain.getDescripcion())
                 .estadoTarea(domain.getEstadoTarea())
                 .idZona(domain.getIdZona())
                 .idLote(domain.getIdLote())
@@ -49,6 +56,44 @@ public class TareaMapper {
                 .alertaVencidaEnviada(domain.getAlertaVencidaEnviada() != null ? domain.getAlertaVencidaEnviada() : false)
                 .fechaCreacion(domain.getFechaCreacion())
                 .fechaCompletada(domain.getFechaCompletada())
+                .build();
+    }
+
+    public TareaRecurrente toDomainRecurrente(TareaRecurrenteEntity entity) {
+        if (entity == null) return null;
+        return TareaRecurrente.builder()
+                .idTareaRecurrente(entity.getIdTareaRecurrente())
+                .tipoTarea(entity.getTipoTarea())
+                .prioridad(entity.getPrioridad())
+                .descripcion(entity.getDescripcion())
+                .frecuenciaDias(entity.getFrecuenciaDias())
+                .idZona(entity.getIdZona())
+                .nombreZona(entity.getZona() != null ? entity.getZona().getNombre() : null)
+                .idLote(entity.getIdLote())
+                .codigoLote(entity.getLote() != null ? entity.getLote().getCodigoLote() : null)
+                .idTrabajadorAsignado(entity.getIdTrabajadorAsignado())
+                .nombreTrabajador(entity.getTrabajador() != null ? entity.getTrabajador().getNombreCompleto() : null)
+                .emailTrabajador(entity.getTrabajador() != null ? entity.getTrabajador().getCorreo() : null)
+                .activo(entity.getActivo())
+                .fechaProximaEjecucion(entity.getFechaProximaEjecucion())
+                .fechaCreacion(entity.getFechaCreacion())
+                .build();
+    }
+
+    public TareaRecurrenteEntity toEntityRecurrente(TareaRecurrente domain) {
+        if (domain == null) return null;
+        return TareaRecurrenteEntity.builder()
+                .idTareaRecurrente(domain.getIdTareaRecurrente())
+                .tipoTarea(domain.getTipoTarea())
+                .prioridad(domain.getPrioridad())
+                .descripcion(domain.getDescripcion())
+                .frecuenciaDias(domain.getFrecuenciaDias())
+                .idZona(domain.getIdZona())
+                .idLote(domain.getIdLote())
+                .idTrabajadorAsignado(domain.getIdTrabajadorAsignado())
+                .activo(domain.getActivo() != null ? domain.getActivo() : true)
+                .fechaProximaEjecucion(domain.getFechaProximaEjecucion())
+                .fechaCreacion(domain.getFechaCreacion())
                 .build();
     }
 

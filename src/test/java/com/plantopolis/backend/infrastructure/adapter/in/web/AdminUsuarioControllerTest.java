@@ -55,7 +55,7 @@ class AdminUsuarioControllerTest {
             var request = new CrearTrabajadorRequest(
                     "Carlos Gómez",
                     "carlos.gomez@plantopolis.com",
-                    "Temporal2024"
+                    "Temporal2024$"
             );
 
             var usuarioCreado = Usuario.builder()
@@ -71,7 +71,7 @@ class AdminUsuarioControllerTest {
             when(usuariosUseCase.crearTrabajador(
                     eq("Carlos Gómez"),
                     eq("carlos.gomez@plantopolis.com"),
-                    eq("Temporal2024")
+                    eq("Temporal2024$")
             )).thenReturn(usuarioCreado);
 
             mockMvc.perform(post("/api/admin/usuarios/trabajadores")
@@ -84,7 +84,7 @@ class AdminUsuarioControllerTest {
                     .andExpect(jsonPath("$.rol").value("TRABAJADOR"))
                     .andExpect(jsonPath("$.activo").value(true));
 
-            verify(usuariosUseCase).crearTrabajador("Carlos Gómez", "carlos.gomez@plantopolis.com", "Temporal2024");
+            verify(usuariosUseCase).crearTrabajador("Carlos Gómez", "carlos.gomez@plantopolis.com", "Temporal2024$");
         }
 
         @Test
@@ -129,7 +129,7 @@ class AdminUsuarioControllerTest {
             var request = new CrearTrabajadorRequest(
                     "Carlos Gómez",
                     "carlos.duplicado@plantopolis.com",
-                    "Temporal2024"
+                    "Temporal2024$"
             );
 
             when(usuariosUseCase.crearTrabajador(any(), eq("carlos.duplicado@plantopolis.com"), any()))

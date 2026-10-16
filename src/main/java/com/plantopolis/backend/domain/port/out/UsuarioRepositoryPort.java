@@ -18,6 +18,14 @@ public interface UsuarioRepositoryPort {
      * Sigue el mismo patrón que ProductoRepositoryPort.buscarTodosAdmin().
      */
     Page<Usuario> listarTodos(String nombre, Long idRol, Boolean activo, Pageable pageable);
-    
+
     Long obtenerIdRol(String nombreRol);
+
+    /**
+     * Lista todos los usuarios activos pertenecientes a un rol determinado (ej. Administradores o Trabajadores).
+     *
+     * @param idRol Identificador del rol.
+     * @return Lista de usuarios activos con dicho rol.
+     */
+    java.util.List<Usuario> listarActivosPorRol(Long idRol);
 }

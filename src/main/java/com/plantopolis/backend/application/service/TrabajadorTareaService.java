@@ -1,8 +1,6 @@
 package com.plantopolis.backend.application.service;
 
-import com.plantopolis.backend.domain.model.ComentarioTarea;
-import com.plantopolis.backend.domain.model.HistorialTarea;
-import com.plantopolis.backend.domain.model.Tarea;
+import com.plantopolis.backend.domain.model.*;
 import com.plantopolis.backend.domain.port.in.GestionarTareasTrabajadorUseCase;
 import com.plantopolis.backend.domain.port.out.ComentarioTareaRepositoryPort;
 import com.plantopolis.backend.domain.port.out.HistorialTareaRepositoryPort;
@@ -13,9 +11,14 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
+import java.time.ZoneId;
 import java.util.List;
-import java.util.Set;
+import java.util.Objects;
 
+/**
+ * Servicio de aplicación para las operaciones de visualización, transición y comentarios
+ * del tablero Kanban por parte del personal operativo del vivero (HU24, HU25, HU26, HU27).
+ */
 @Service
 @RequiredArgsConstructor
 public class TrabajadorTareaService implements GestionarTareasTrabajadorUseCase {
@@ -25,20 +28,13 @@ public class TrabajadorTareaService implements GestionarTareasTrabajadorUseCase 
     private final ComentarioTareaRepositoryPort comentarioRepo;
     private final UsuarioRepositoryPort usuarioRepo;
 
-    public static final String ESTADO_POR_HACER = "POR_HACER";
-    public static final String ESTADO_EN_PROGRESO = "EN_PROGRESO";
-    public static final String ESTADO_EN_REVISION = "EN_REVISION";
-    public static final String ESTADO_COMPLETADA = "COMPLETADA";
-    public static final String ESTADO_BLOQUEADA = "BLOQUEADA";
-
-    private static final Set<String> ESTADOS_VALIDOS = Set.of(
-            ESTADO_POR_HACER, ESTADO_EN_PROGRESO, ESTADO_EN_REVISION, ESTADO_COMPLETADA, ESTADO_BLOQUEADA
-    );
+    private static final ZoneId ZONA_BOGOTA = ZoneId.of("America/Bogota");
+    private static final Long ROL_ADMINISTRADOR = 1L;
 
     @Override
     public List<Tarea> listarMisTareas(String emailTrabajador, String estado, String prioridad) {
         var usuario = usuarioRepo.buscarPorEmail(emailTrabajador)
-                .orElseThrow(() -> new RuntimeException("Usuario no encontrado con email: " + emailTrabajador));
+                .orElseThrow(() -> new RecursoNoEncontradoException("Usuario no encontrado con email: " + emailTrabajador));
         return tareaRepo.buscarPorTrabajador(usuario.getIdUsuario(), normalizar(estado), normalizar(prioridad));
     }
 
@@ -50,48 +46,63 @@ public class TrabajadorTareaService implements GestionarTareasTrabajadorUseCase 
     @Override
     public Tarea obtenerDetalleTarea(Long idTarea) {
         return tareaRepo.buscarPorId(idTarea)
-                .orElseThrow(() -> new RuntimeException("Tarea no encontrada con ID: " + idTarea));
+                .orElseThrow(() -> new RecursoNoEncontradoException("Tarea no encontrada con ID: " + idTarea));
     }
 
     @Override
     @Transactional
-    public Tarea cambiarEstadoTarea(Long idTarea, String nuevoEstado, String comentario, String emailUsuario) {
+    public Tarea cambiarEstadoTarea(Long idTarea, String nuevoEstadoStr, String comentario, String emailUsuario) {
         var tarea = obtenerDetalleTarea(idTarea);
         var usuario = usuarioRepo.buscarPorEmail(emailUsuario)
-                .orElseThrow(() -> new RuntimeException("Usuario no encontrado con email: " + emailUsuario));
+                .orElseThrow(() -> new RecursoNoEncontradoException("Usuario no encontrado con email: " + emailUsuario));
 
-        String estadoActual = tarea.getEstadoTarea();
-        String nuevo = nuevoEstado != null ? nuevoEstado.trim().toUpperCase() : "";
+        // Validación de permisos de propiedad (HU25):
+        // El TRABAJADOR solo puede mover tareas asignadas a su propia cuenta.
+        // El ADMINISTRADOR puede mover cualquier tarea operativa.
+        boolean esAdmin = ROL_ADMINISTRADOR.equals(usuario.getIdRol()) ||
+                "ADMINISTRADOR".equalsIgnoreCase(usuario.getRolNombre());
 
-        if (!ESTADOS_VALIDOS.contains(nuevo)) {
-            throw new RuntimeException("Estado de tarea inválido: " + nuevoEstado);
+        if (!esAdmin) {
+            if (!Objects.equals(tarea.getIdTrabajadorAsignado(), usuario.getIdUsuario())) {
+                throw new OperacionNoPermitidaException("No tienes permisos para modificar el estado de una tarea asignada a otro trabajador o en backlog.");
+            }
         }
 
-        if (estadoActual.equalsIgnoreCase(nuevo)) {
+        EstadoTarea estadoActual = EstadoTarea.desde(tarea.getEstadoTarea());
+        EstadoTarea estadoDestino = EstadoTarea.desde(nuevoEstadoStr);
+
+        // Si ya está en el estado destino, no hace nada
+        if (estadoActual == estadoDestino) {
             return tarea;
         }
 
-        validarTransicionTarea(estadoActual, nuevo);
+        // Validación de máquina de estados de negocio (HU25 / Decisión acordada)
+        if (!estadoActual.puedeTransicionarA(estadoDestino)) {
+            throw new IllegalStateException(
+                    "Transición no permitida de '" + estadoActual + "' a '" + estadoDestino +
+                    "'. Estados destino válidos desde " + estadoActual + ": " + estadoActual.destinosPermitidos()
+            );
+        }
 
-        tarea.setEstadoTarea(nuevo);
-        if (ESTADO_COMPLETADA.equalsIgnoreCase(nuevo)) {
-            tarea.setFechaCompletada(LocalDateTime.now());
-        } else if (ESTADO_COMPLETADA.equalsIgnoreCase(estadoActual)) {
-            tarea.setFechaCompletada(null);
+        tarea.setEstadoTarea(estadoDestino.name());
+        if (EstadoTarea.COMPLETADA == estadoDestino) {
+            tarea.setFechaCompletada(LocalDateTime.now(ZONA_BOGOTA));
         }
 
         var tareaActualizada = tareaRepo.guardar(tarea);
 
+        // Registro de auditoría (tipoCambio = ESTADO)
         var historial = HistorialTarea.builder()
                 .idTarea(idTarea)
                 .idUsuario(usuario.getIdUsuario())
                 .tipoCambio("ESTADO")
-                .estadoAnterior(estadoActual)
-                .estadoNuevo(nuevo)
-                .fechaCambio(LocalDateTime.now())
+                .estadoAnterior(estadoActual.name())
+                .estadoNuevo(estadoDestino.name())
+                .fechaCambio(LocalDateTime.now(ZONA_BOGOTA))
                 .build();
         historialRepo.guardar(historial);
 
+        // Comentario opcional adjunto en la transición (HU26)
         if (comentario != null && !comentario.trim().isEmpty()) {
             agregarComentario(idTarea, comentario.trim(), emailUsuario);
         }
@@ -103,21 +114,21 @@ public class TrabajadorTareaService implements GestionarTareasTrabajadorUseCase 
     @Transactional
     public ComentarioTarea agregarComentario(Long idTarea, String comentario, String emailUsuario) {
         if (comentario == null || comentario.trim().isEmpty()) {
-            throw new RuntimeException("El contenido del comentario no puede estar vacío.");
+            throw new IllegalArgumentException("El contenido del comentario no puede estar vacío.");
         }
 
         var usuario = usuarioRepo.buscarPorEmail(emailUsuario)
-                .orElseThrow(() -> new RuntimeException("Usuario no encontrado con email: " + emailUsuario));
+                .orElseThrow(() -> new RecursoNoEncontradoException("Usuario no encontrado con email: " + emailUsuario));
 
-        if (!tareaRepo.buscarPorId(idTarea).isPresent()) {
-            throw new RuntimeException("Tarea no encontrada con ID: " + idTarea);
+        if (tareaRepo.buscarPorId(idTarea).isEmpty()) {
+            throw new RecursoNoEncontradoException("Tarea no encontrada con ID: " + idTarea);
         }
 
         var nuevoComentario = ComentarioTarea.builder()
                 .idTarea(idTarea)
                 .idUsuario(usuario.getIdUsuario())
                 .comentario(comentario.trim())
-                .fechaCreacion(LocalDateTime.now())
+                .fechaCreacion(LocalDateTime.now(ZONA_BOGOTA))
                 .build();
 
         return comentarioRepo.guardar(nuevoComentario);
@@ -131,42 +142,6 @@ public class TrabajadorTareaService implements GestionarTareasTrabajadorUseCase 
     @Override
     public List<ComentarioTarea> obtenerComentariosTarea(Long idTarea) {
         return comentarioRepo.buscarComentariosPorIdTarea(idTarea);
-    }
-
-    private void validarTransicionTarea(String origen, String destino) {
-        if (ESTADO_BLOQUEADA.equalsIgnoreCase(destino)) {
-            if (ESTADO_COMPLETADA.equalsIgnoreCase(origen)) {
-                throw new RuntimeException("Una tarea completada no puede ser bloqueada.");
-            }
-            return;
-        }
-
-        if (ESTADO_BLOQUEADA.equalsIgnoreCase(origen)) {
-            if (ESTADO_POR_HACER.equalsIgnoreCase(destino) || ESTADO_EN_PROGRESO.equalsIgnoreCase(destino)) {
-                return;
-            }
-            throw new RuntimeException("Una tarea bloqueada solo puede regresar a 'POR_HACER' o 'EN_PROGRESO'.");
-        }
-
-        boolean permitida = false;
-        if (ESTADO_POR_HACER.equalsIgnoreCase(origen) && ESTADO_EN_PROGRESO.equalsIgnoreCase(destino)) {
-            permitida = true;
-        } else if (ESTADO_EN_PROGRESO.equalsIgnoreCase(origen) &&
-                (ESTADO_EN_REVISION.equalsIgnoreCase(destino) || ESTADO_POR_HACER.equalsIgnoreCase(destino))) {
-            permitida = true;
-        } else if (ESTADO_EN_REVISION.equalsIgnoreCase(origen) &&
-                (ESTADO_COMPLETADA.equalsIgnoreCase(destino) || ESTADO_EN_PROGRESO.equalsIgnoreCase(destino))) {
-            permitida = true;
-        } else if (ESTADO_COMPLETADA.equalsIgnoreCase(origen) && ESTADO_EN_REVISION.equalsIgnoreCase(destino)) {
-            permitida = true;
-        }
-
-        if (!permitida) {
-            throw new RuntimeException(
-                    "Transición no permitida de " + origen + " a " + destino +
-                    ". Flujo permitido: POR_HACER -> EN_PROGRESO -> EN_REVISION -> COMPLETADA (o BLOQUEADA)."
-            );
-        }
     }
 
     private String normalizar(String valor) {

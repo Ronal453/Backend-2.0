@@ -54,4 +54,12 @@ public class UsuarioJpaAdapter implements UsuarioRepositoryPort {
                 .map(com.plantopolis.backend.infrastructure.persistence.entity.RolEntity::getIdRol)
                 .orElseThrow(() -> new RuntimeException("Rol no encontrado: " + nombreRol));
     }
+
+    @Override
+    public java.util.List<Usuario> listarActivosPorRol(Long idRol) {
+        return jpaRepository.findByIdRolAndActivoTrue(idRol)
+                .stream()
+                .map(mapper::toDomain)
+                .toList();
+    }
 }

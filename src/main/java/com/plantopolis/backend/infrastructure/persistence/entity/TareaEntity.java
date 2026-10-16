@@ -28,6 +28,9 @@ public class TareaEntity {
     @Column(name = "PRIORIDAD", nullable = false, length = 20)
     private String prioridad;
 
+    @Column(name = "DESCRIPCION", length = 500)
+    private String descripcion;
+
     @Column(name = "ESTADO_TAREA", nullable = false, length = 40)
     private String estadoTarea;
 

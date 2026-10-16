@@ -1,9 +1,6 @@
 package com.plantopolis.backend.application.service;
 
-import com.plantopolis.backend.domain.model.ComentarioTarea;
-import com.plantopolis.backend.domain.model.HistorialTarea;
-import com.plantopolis.backend.domain.model.Tarea;
-import com.plantopolis.backend.domain.model.Usuario;
+import com.plantopolis.backend.domain.model.*;
 import com.plantopolis.backend.domain.port.out.ComentarioTareaRepositoryPort;
 import com.plantopolis.backend.domain.port.out.HistorialTareaRepositoryPort;
 import com.plantopolis.backend.domain.port.out.TareaRepositoryPort;
@@ -43,6 +40,16 @@ class TrabajadorTareaServiceTest {
                 .correo("operario@plantopolis.com")
                 .idRol(2L)
                 .rolNombre("TRABAJADOR")
+                .build();
+    }
+
+    private Usuario adminDemo() {
+        return Usuario.builder()
+                .idUsuario(1L)
+                .nombreCompleto("Admin General")
+                .correo("admin@plantopolis.com")
+                .idRol(1L)
+                .rolNombre("ADMINISTRADOR")
                 .build();
     }
 
@@ -88,7 +95,7 @@ class TrabajadorTareaServiceTest {
 
             // Act & Assert
             assertThatThrownBy(() -> sut.cambiarEstadoTarea(100L, "COMPLETADA", null, "operario@plantopolis.com"))
-                    .isInstanceOf(RuntimeException.class)
+                    .isInstanceOf(IllegalStateException.class)
                     .hasMessageContaining("Transición no permitida");
 
             verify(tareaRepo, never()).guardar(any());
@@ -109,6 +116,59 @@ class TrabajadorTareaServiceTest {
             // Assert
             assertThat(bloqueada.getEstadoTarea()).isEqualTo("BLOQUEADA");
             verify(historialRepo).guardar(any(HistorialTarea.class));
+        }
+
+        @Test
+        @DisplayName("Trabajador intentando mover tarea asignada a otro trabajador lanza OperacionNoPermitidaException (403)")
+        void trabajadorMueveTareaAjena_debeLanzarOperacionNoPermitida() {
+            // Arrange: Tarea asignada al operario 99L, pero intenta moverla el operario 10L
+            Tarea tareaAjena = tareaPorHacer();
+            tareaAjena.setIdTrabajadorAsignado(99L);
+
+            when(tareaRepo.buscarPorId(100L)).thenReturn(Optional.of(tareaAjena));
+            when(usuarioRepo.buscarPorEmail("operario@plantopolis.com")).thenReturn(Optional.of(trabajadorDemo()));
+
+            // Act & Assert
+            assertThatThrownBy(() -> sut.cambiarEstadoTarea(100L, "EN_PROGRESO", null, "operario@plantopolis.com"))
+                    .isInstanceOf(OperacionNoPermitidaException.class)
+                    .hasMessageContaining("No tienes permisos para modificar el estado de una tarea asignada a otro trabajador");
+
+            verify(tareaRepo, never()).guardar(any());
+        }
+
+        @Test
+        @DisplayName("Administrador puede mover cualquier tarea incluso si está asignada a otro o en backlog")
+        void adminMueveTarea_debePermitirCambio() {
+            // Arrange: Tarea sin asignar (backlog)
+            Tarea tareaBacklog = tareaPorHacer();
+            tareaBacklog.setIdTrabajadorAsignado(null);
+
+            when(tareaRepo.buscarPorId(100L)).thenReturn(Optional.of(tareaBacklog));
+            when(usuarioRepo.buscarPorEmail("admin@plantopolis.com")).thenReturn(Optional.of(adminDemo()));
+            when(tareaRepo.guardar(any(Tarea.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+            // Act
+            Tarea resultado = sut.cambiarEstadoTarea(100L, "EN_PROGRESO", "Moviendo desde panel admin", "admin@plantopolis.com");
+
+            // Assert
+            assertThat(resultado.getEstadoTarea()).isEqualTo("EN_PROGRESO");
+            verify(tareaRepo).guardar(any());
+        }
+
+        @Test
+        @DisplayName("COMPLETADA es terminal: intentar moverla lanza excepción")
+        void completadaEsTerminal_debeLanzarExcepcion() {
+            // Arrange
+            Tarea completada = tareaPorHacer();
+            completada.setEstadoTarea(EstadoTarea.COMPLETADA.name());
+
+            when(tareaRepo.buscarPorId(100L)).thenReturn(Optional.of(completada));
+            when(usuarioRepo.buscarPorEmail("operario@plantopolis.com")).thenReturn(Optional.of(trabajadorDemo()));
+
+            // Act & Assert
+            assertThatThrownBy(() -> sut.cambiarEstadoTarea(100L, "EN_REVISION", null, "operario@plantopolis.com"))
+                    .isInstanceOf(IllegalStateException.class)
+                    .hasMessageContaining("Transición no permitida");
         }
     }
 }

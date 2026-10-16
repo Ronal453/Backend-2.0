@@ -17,6 +17,7 @@ public class Tarea {
     private Long idTareaRecurrente;
     private String tipoTarea;
     private String prioridad;
+    private String descripcion;
     private String estadoTarea;
     private Long idZona;
     private String nombreZona;

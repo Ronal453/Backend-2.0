@@ -78,11 +78,11 @@ class AdminProductoServiceTest {
                     .precio(new BigDecimal("25000")).stock(20)
                     .idCategoria(1L).idTipo(1L).activo(false).build();
             List<Producto> todos = List.of(productoBase(true), inactivo);
-            when(productoRepository.buscarTodosAdmin(any(), any(), any(), any()))
+            when(productoRepository.buscarTodosAdmin(any(), any(), any(), any(), any()))
                     .thenReturn(new PageImpl<>(todos, pageable(), 2));
 
             // Act
-            Page<Producto> resultado = sut.listarTodos(null, null, null, pageable());
+            Page<Producto> resultado = sut.listarTodos(null, null, null, null, pageable());
 
             // Assert
             assertThat(resultado.getContent()).hasSize(2);
@@ -95,28 +95,28 @@ class AdminProductoServiceTest {
         @DisplayName("Debería filtrar por nombre cuando se proporciona")
         void listarTodos_conFiltroNombre_delegaAlRepositorio() {
             // Arrange
-            when(productoRepository.buscarTodosAdmin(eq("Ficus"), any(), any(), any()))
+            when(productoRepository.buscarTodosAdmin(eq("Ficus"), any(), any(), any(), any()))
                     .thenReturn(new PageImpl<>(List.of()));
 
             // Act
-            sut.listarTodos("Ficus", null, null, pageable());
+            sut.listarTodos("Ficus", null, null, null, pageable());
 
             // Assert
-            verify(productoRepository).buscarTodosAdmin("Ficus", null, null, pageable());
+            verify(productoRepository).buscarTodosAdmin("Ficus", null, null, null, pageable());
         }
 
         @Test
         @DisplayName("Debería delegar a buscarTodosAdmin (no al catálogo público)")
         void listarTodos_usaMetodoAdmin_noPublico() {
             // Arrange
-            when(productoRepository.buscarTodosAdmin(any(), any(), any(), any()))
+            when(productoRepository.buscarTodosAdmin(any(), any(), any(), any(), any()))
                     .thenReturn(new PageImpl<>(List.of()));
 
             // Act
-            sut.listarTodos(null, null, null, pageable());
+            sut.listarTodos(null, null, null, null, pageable());
 
             // Assert
-            verify(productoRepository).buscarTodosAdmin(any(), any(), any(), any());
+            verify(productoRepository).buscarTodosAdmin(any(), any(), any(), any(), any());
             verify(productoRepository, never()).buscarConFiltros(
                     any(), any(), any(), any(), any(), any());
         }

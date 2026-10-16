@@ -64,3 +64,11 @@ springdoc:
 logging:
   level:
     com.plantopolis: ${LOG_LEVEL:INFO}
+
+# ── Tareas y Procesos Programados (HU23, HU28) ────────────
+tareas:
+  cron:
+    # Generación diaria de instancias recurrentes (00:05 Bogotá)
+    recurrentes: ${CRON_TAREAS_RECURRENTES:0 5 0 * * *}
+    # Alerta diaria por email de tareas vencidas (07:00 Bogotá)
+    alertas-vencidas: ${CRON_ALERTAS_VENCIDAS:0 0 7 * * *}

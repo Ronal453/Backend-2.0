@@ -2,6 +2,7 @@ package com.plantopolis.backend.infrastructure.adapter.out.notification;
 
 import com.plantopolis.backend.domain.model.DetallePedido;
 import com.plantopolis.backend.domain.model.Pedido;
+import com.plantopolis.backend.domain.model.Tarea;
 import com.plantopolis.backend.domain.port.out.NotificacionPort;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -149,8 +150,41 @@ public class EmailAdapter implements NotificacionPort {
         }
     }
 
+    // ─────────────────────────────────────────────────────────────────────
+    /**
+     * Envía un email consolidado de alerta al administrador cuando existen tareas vencidas (HU28).
+     *
+     * @param emailDestino Correo del administrador destinatario
+     * @param nombreDestino Nombre del administrador
+     * @param tareasVencidas Listado de tareas operativas cuya fecha límite ha expirado
+     * @return true si la API de Resend confirmó el envío; false en caso de excepción
+     */
+    @Override
+    public boolean enviarAlertaTareasVencidas(String emailDestino, String nombreDestino, List<Tarea> tareasVencidas) {
+        if (tareasVencidas == null || tareasVencidas.isEmpty()) {
+            return false;
+        }
+
+        try {
+            log.info("Enviando alerta de {} tareas vencidas a: {}", tareasVencidas.size(), emailDestino);
+
+            String asunto = "⚠️ Alerta Operativa: " + tareasVencidas.size()
+                    + " tarea(s) vencida(s) — Plantopolis Vivero";
+            String html = construirHtmlAlertaTareasVencidas(nombreDestino, tareasVencidas);
+
+            enviarEmailViaResend(emailDestino, asunto, html);
+
+            log.info("✅ Alerta de tareas vencidas enviada exitosamente a: {}", emailDestino);
+            return true;
+
+        } catch (Exception e) {
+            log.error("❌ Error enviando email de tareas vencidas a {}: {}", emailDestino, e.getMessage());
+            return false;
+        }
+    }
+
     // ═════════════════════════════════════════════════════════════════════
-    // PLANTILLAS HTML (sin cambios respecto a la versión SMTP)
+    // PLANTILLAS HTML
     // ═════════════════════════════════════════════════════════════════════
 
     private String construirHtmlConfirmacion(Pedido pedido) {
@@ -768,5 +802,118 @@ public class EmailAdapter implements NotificacionPort {
     private String formatearPrecio(BigDecimal precio) {
         if (precio == null) return "0";
         return String.format("%,.0f", precio);
+    }
+
+    private String construirHtmlAlertaTareasVencidas(String nombreAdmin, List<Tarea> tareasVencidas) {
+        StringBuilder filasHtml = new StringBuilder();
+
+        for (int i = 0; i < tareasVencidas.size(); i++) {
+            Tarea t = tareasVencidas.get(i);
+            String bg = (i % 2 == 0) ? "#ffffff" : "#fff8f8";
+
+            String prioridadColor = switch (t.getPrioridad() != null ? t.getPrioridad().toUpperCase() : "") {
+                case "ALTA" -> "#d32f2f";
+                case "MEDIA" -> "#ed6c02";
+                default -> "#2e7d32";
+            };
+
+            String ubicacion = t.getNombreZona() != null
+                    ? "Zona: " + t.getNombreZona()
+                    : (t.getCodigoLote() != null ? "Lote: " + t.getCodigoLote() : "Sin asignar");
+
+            String asignado = t.getNombreTrabajador() != null
+                    ? t.getNombreTrabajador()
+                    : "<em style='color:#9e9e9e;'>Sin asignar (Backlog)</em>";
+
+            filasHtml.append(String.format("""
+                <tr style="background-color:%s;">
+                  <td style="padding:12px 14px;border-bottom:1px solid #f0f0f0;font-size:13px;color:#333;">
+                    <strong>#%d</strong> — %s
+                  </td>
+                  <td style="padding:12px 8px;border-bottom:1px solid #f0f0f0;text-align:center;">
+                    <span style="background-color:%s;color:#fff;font-size:11px;font-weight:700;padding:3px 8px;border-radius:6px;">
+                      %s
+                    </span>
+                  </td>
+                  <td style="padding:12px 10px;border-bottom:1px solid #f0f0f0;font-size:12px;color:#555;">
+                    %s
+                  </td>
+                  <td style="padding:12px 10px;border-bottom:1px solid #f0f0f0;font-size:12px;color:#333;">
+                    %s
+                  </td>
+                  <td style="padding:12px 14px;border-bottom:1px solid #f0f0f0;font-size:12px;color:#c62828;font-weight:700;text-align:right;">
+                    %s
+                  </td>
+                </tr>
+            """, bg, t.getIdTarea(), t.getTipoTarea(), prioridadColor, t.getPrioridad(), ubicacion, asignado, t.getFechaLimite()));
+        }
+
+        return String.format("""
+            <!DOCTYPE html>
+            <html lang="es">
+            <head>
+              <meta charset="UTF-8"/>
+              <title>Alerta de Tareas Vencidas — Plantopolis</title>
+            </head>
+            <body style="margin:0;padding:0;background-color:#f4f7f4;font-family:Arial,Helvetica,sans-serif;">
+              <table width="100%%" cellpadding="0" cellspacing="0" style="background-color:#f4f7f4;padding:20px 0;">
+                <tr>
+                  <td align="center">
+                    <table width="650" cellpadding="0" cellspacing="0" style="max-width:650px;width:100%%;">
+                      <tr>
+                        <td style="background-color:#0E4F2F;border-radius:12px 12px 0 0;padding:28px 36px;text-align:center;">
+                          <p style="margin:0;font-size:32px;">🌱</p>
+                          <h1 style="margin:6px 0 0;color:#ffffff;font-size:24px;font-weight:700;">Plantopolis Vivero</h1>
+                          <p style="margin:4px 0 0;color:#a8d5b8;font-size:13px;">Sistema de Control y Gestión Operativa</p>
+                        </td>
+                      </tr>
+                      <tr>
+                        <td style="background-color:#ffffff;padding:36px;">
+                          <div style="text-align:center;margin-bottom:24px;">
+                            <div style="font-size:44px;margin-bottom:8px;">⚠️</div>
+                            <h2 style="margin:0;color:#c62828;font-size:20px;font-weight:700;">
+                              Alerta de Tareas Vencidas
+                            </h2>
+                            <p style="margin:8px 0 0;color:#555555;font-size:14px;">
+                              Hola <strong>%s</strong>, se han detectado <strong>%d</strong> tarea(s) que superaron su fecha límite sin completarse.
+                            </p>
+                          </div>
+                          <table width="100%%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;margin-bottom:24px;">
+                            <thead>
+                              <tr style="background-color:#c62828;color:#ffffff;">
+                                <th style="padding:10px 14px;font-size:12px;text-align:left;border-radius:6px 0 0 0;">Tarea</th>
+                                <th style="padding:10px 8px;font-size:12px;text-align:center;">Prioridad</th>
+                                <th style="padding:10px 10px;font-size:12px;text-align:left;">Ubicación</th>
+                                <th style="padding:10px 10px;font-size:12px;text-align:left;">Responsable</th>
+                                <th style="padding:10px 14px;font-size:12px;text-align:right;border-radius:0 6px 0 0;">Límite</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              %s
+                            </tbody>
+                          </table>
+                          <div style="background-color:#fff3e0;border-left:4px solid #ff9800;border-radius:8px;padding:14px 18px;margin-bottom:20px;">
+                            <p style="margin:0;font-size:13px;color:#e65100;line-height:1.5;">
+                              💡 <strong>Acción requerida:</strong> Puedes ingresar al <strong>Tablero Kanban</strong> o al <strong>Dashboard Operativo</strong> de Plantopolis para reasignar tareas o coordinar su ejecución con el equipo.
+                            </p>
+                          </div>
+                        </td>
+                      </tr>
+                      <tr>
+                        <td style="background-color:#1a1a1a;border-radius:0 0 12px 12px;padding:20px;text-align:center;">
+                          <p style="margin:0;color:#ffffff;font-size:13px;font-weight:600;">Plantopolis</p>
+                          <p style="margin:4px 0 0;color:#777777;font-size:11px;">Notificación automática de auditoría y operaciones</p>
+                        </td>
+                      </tr>
+                    </table>
+                  </td>
+                </tr>
+              </table>
+            </body>
+            </html>
+        """,
+        nombreAdmin != null ? nombreAdmin : "Administrador",
+        tareasVencidas.size(),
+        filasHtml.toString());
     }
 }

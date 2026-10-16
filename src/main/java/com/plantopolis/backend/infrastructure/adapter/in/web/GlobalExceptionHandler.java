@@ -33,6 +33,22 @@ public class GlobalExceptionHandler {
                 .body(errorBody("Esta cuenta fue desactivada. Contacta al administrador.", 403));
     }
 
+    @ExceptionHandler(com.plantopolis.backend.domain.model.RecursoNoEncontradoException.class)
+    public ResponseEntity<Map<String, Object>> handleNotFound(
+            com.plantopolis.backend.domain.model.RecursoNoEncontradoException ex) {
+        return ResponseEntity
+                .status(HttpStatus.NOT_FOUND)
+                .body(errorBody(ex.getMessage(), 404));
+    }
+
+    @ExceptionHandler(com.plantopolis.backend.domain.model.OperacionNoPermitidaException.class)
+    public ResponseEntity<Map<String, Object>> handleOperacionNoPermitida(
+            com.plantopolis.backend.domain.model.OperacionNoPermitidaException ex) {
+        return ResponseEntity
+                .status(HttpStatus.FORBIDDEN)
+                .body(errorBody(ex.getMessage(), 403));
+    }
+
     @ExceptionHandler(IllegalArgumentException.class)
     public ResponseEntity<Map<String, Object>> handleIllegalArgument(
             IllegalArgumentException ex) {

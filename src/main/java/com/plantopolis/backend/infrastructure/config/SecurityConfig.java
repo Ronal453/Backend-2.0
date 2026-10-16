@@ -13,6 +13,9 @@ import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 
+import org.springframework.http.HttpStatus;
+import org.springframework.security.web.authentication.HttpStatusEntryPoint;
+
 /**
  * Configuración de Spring Security para Plantopolis.
  *
@@ -57,13 +60,14 @@ public class SecurityConfig {
      *
      * Orden de evaluación (de arriba hacia abajo, primera regla que coincide gana):
      *   1. Swagger        → permitAll
-     *   2. /api/test/**   → permitAll (diagnóstico de email, solo desarrollo)
-     *   3. /api/auth/**   → permitAll (login y registro públicos)
-     *   4. /api/productos → permitAll (catálogo público)
-     *   5. /api/carrito   → authenticated (requiere JWT)
-     *   6. /api/pedidos   → authenticated (requiere JWT)
-     *   7. /api/admin     → hasRole ADMINISTRADOR
-     *   8. anyRequest     → authenticated (por defecto)
+     *   2. /error         → permitAll (manejo interno de 404/500 sin alterar códigos HTTP)
+     *   3. /api/test/**   → permitAll (diagnóstico de email, solo desarrollo)
+     *   4. /api/auth/**   → permitAll (login y registro públicos)
+     *   5. /api/productos → permitAll (catálogo público)
+     *   6. /api/carrito   → authenticated (requiere JWT)
+     *   7. /api/pedidos   → authenticated (requiere JWT)
+     *   8. /api/admin     → hasRole ADMINISTRADOR
+     *   9. anyRequest     → authenticated (por defecto)
      *
      * @param http objeto de configuración HTTP de Spring Security
      * @return cadena de filtros lista para usar
@@ -74,11 +78,19 @@ public class SecurityConfig {
             // Deshabilitar CSRF: no aplica en APIs REST con JWT (sin cookies de sesión)
             .csrf(AbstractHttpConfigurer::disable)
 
+            // Manejo explícito de excepciones: peticiones no autenticadas devuelven 401 UNAUTHORIZED
+            .exceptionHandling(ex -> ex
+                .authenticationEntryPoint(new HttpStatusEntryPoint(HttpStatus.UNAUTHORIZED))
+            )
+
             // ── Reglas de autorización por ruta ──────────────────────────────
             .authorizeHttpRequests(auth -> auth
 
                 // Swagger UI y OpenAPI spec → acceso público para documentación
                 .requestMatchers(SWAGGER_PATHS).permitAll()
+
+                // Dispatcher interno de errores de Spring Boot (evita que un 404 se enmascare como 403)
+                .requestMatchers("/error").permitAll()
 
                 // Endpoints de diagnóstico/prueba → acceso público (solo desarrollo)
                 // IMPORTANTE: eliminar o restringir antes de subir a producción

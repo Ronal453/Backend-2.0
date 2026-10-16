@@ -40,20 +40,20 @@ class AdminReporteServiceTest {
         when(reporteRepository.contarTotalPedidos(any(), any())).thenReturn(pedidos);
         when(productoRepository.contarActivos()).thenReturn(activos);
         when(reporteRepository.contarPedidosPorEstado(any(), any())).thenReturn(new HashMap<>());
-        when(reporteRepository.obtenerTopProductosVendidos(anyInt())).thenReturn(new ArrayList<>());
+        when(reporteRepository.obtenerTopProductosVendidos(anyInt(), any(), any())).thenReturn(new ArrayList<>());
     }
 
     @Test
     void obtenerReporte_retornaTotalIngresos() {
         setupBasico(new BigDecimal("1250000"), 42L, 18L);
-        ReporteVentas resultado = sut.obtenerReporte();
+        ReporteVentas resultado = sut.obtenerReporte(null, null);
         assertThat(resultado.getTotalIngresos()).isEqualByComparingTo("1250000");
     }
 
     @Test
     void obtenerReporte_retornaTotalPedidos() {
         setupBasico(new BigDecimal("500000"), 15L, 10L);
-        ReporteVentas resultado = sut.obtenerReporte();
+        ReporteVentas resultado = sut.obtenerReporte(null, null);
         assertThat(resultado.getTotalPedidos()).isEqualTo(15L);
     }
 
@@ -65,7 +65,7 @@ class AdminReporteServiceTest {
         mockEstados.put("ENVIADO", 10L);
         when(reporteRepository.contarPedidosPorEstado(any(), any())).thenReturn(mockEstados);
 
-        ReporteVentas resultado = sut.obtenerReporte();
+        ReporteVentas resultado = sut.obtenerReporte(null, null);
         assertThat(resultado.getPedidosPorEstado().get("PENDIENTE")).isEqualTo(5L);
         assertThat(resultado.getPedidosPorEstado().get("ENVIADO")).isEqualTo(10L);
     }
@@ -77,7 +77,7 @@ class AdminReporteServiceTest {
         top.add(ProductoMasVendido.builder().idProducto(1L).nombreProducto("Ficus").totalVendido(100L).totalIngresos(new BigDecimal("1000")).build());
         when(reporteRepository.obtenerTopProductosVendidos(eq(5), any(), any())).thenReturn(top);
 
-        ReporteVentas resultado = sut.obtenerReporte();
+        ReporteVentas resultado = sut.obtenerReporte(null, null);
         assertThat(resultado.getTopProductos()).hasSize(1);
         assertThat(resultado.getTopProductos().get(0).getNombreProducto()).isEqualTo("Ficus");
     }

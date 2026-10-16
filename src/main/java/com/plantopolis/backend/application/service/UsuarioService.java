@@ -48,6 +48,9 @@ public class UsuarioService implements RegistrarUsuarioUseCase, LoginUseCase, Lo
         }
 
         Long idRolCliente = usuarioRepository.obtenerIdRol("CLIENTE");
+        if (idRolCliente == null || idRolCliente == 0L) {
+            idRolCliente = ROL_CLIENTE;
+        }
 
         Usuario nuevo = Usuario.builder()
                 .nombreCompleto(nombre)
@@ -64,6 +67,16 @@ public class UsuarioService implements RegistrarUsuarioUseCase, LoginUseCase, Lo
         return usuarioRepository.guardar(nuevo);
     }
 
+    /**
+     * Autentica a un usuario mediante credenciales tradicionales (correo y contraseña).
+     * Emite un nuevo token JWT de 24 horas y actualiza 'ultimoToken' en la base de datos.
+     * Al iniciar sesión con credenciales válidas, cualquier sesión previa en otro dispositivo
+     * queda automáticamente superada e invalidada por JwtAuthenticationFilter.
+     *
+     * @param email Correo electrónico registrado del usuario
+     * @param password Contraseña en texto claro para validación BCrypt
+     * @return Token JWT firmado con los claims del usuario
+     */
     @Override
     public String login(String email, String password) {
         authManager.authenticate(
@@ -77,28 +90,6 @@ public class UsuarioService implements RegistrarUsuarioUseCase, LoginUseCase, Lo
         String rol = (usuario.getRolNombre() != null)
                 ? usuario.getRolNombre()
                 : "CLIENTE";
-
-        if (usuario.getUltimoToken() != null && jwtUtil.estaVigente(usuario.getUltimoToken())) {
-            boolean isSameSession = false;
-            org.springframework.web.context.request.ServletRequestAttributes attributes = 
-                (org.springframework.web.context.request.ServletRequestAttributes) org.springframework.web.context.request.RequestContextHolder.getRequestAttributes();
-            
-            if (attributes != null) {
-                jakarta.servlet.http.HttpServletRequest request = attributes.getRequest();
-                if (request.getCookies() != null) {
-                    for (jakarta.servlet.http.Cookie cookie : request.getCookies()) {
-                        if ("jwt_token".equals(cookie.getName()) && cookie.getValue().equals(usuario.getUltimoToken())) {
-                            isSameSession = true;
-                            break;
-                        }
-                    }
-                }
-            }
-            
-            if (!isSameSession) {
-                throw new RuntimeException("Ya se encuentra una sesión activa. Por favor, espere un tiempo a que expire o cierre la sesión activa.");
-            }
-        }
 
         String token = jwtUtil.generarToken(userDetails, rol);
         usuario.setUltimoToken(token);
@@ -163,11 +154,7 @@ public class UsuarioService implements RegistrarUsuarioUseCase, LoginUseCase, Lo
 
         var userDetails = userDetailsService.loadUserByUsername(email);
         String rol = (usuario.getRolNombre() != null) ? usuario.getRolNombre() : "CLIENTE";
-        
-        if (usuario.getUltimoToken() != null && jwtUtil.estaVigente(usuario.getUltimoToken())) {
-            throw new RuntimeException("Ya se encuentra una sesión activa. Por favor, espere un tiempo a que expire o cierre la sesión activa.");
-        }
-        
+
         String token = jwtUtil.generarToken(userDetails, rol);
 
         usuario.setUltimoToken(token);

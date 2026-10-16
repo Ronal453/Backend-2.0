@@ -28,4 +28,6 @@ public interface UsuarioJpaRepository extends JpaRepository<UsuarioEntity, Long>
             @Param("activo") Boolean activo,
             Pageable pageable
     );
+
+    java.util.List<UsuarioEntity> findByIdRolAndActivoTrue(Long idRol);
 }

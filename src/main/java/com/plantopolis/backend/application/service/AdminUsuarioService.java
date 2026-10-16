@@ -72,6 +72,9 @@ public class AdminUsuarioService implements GestionarUsuariosAdminUseCase {
         }
 
         Long idRolTrabajador = usuarioRepository.obtenerIdRol("TRABAJADOR");
+        if (idRolTrabajador == null || idRolTrabajador == 0L) {
+            idRolTrabajador = ROL_TRABAJADOR;
+        }
 
         Usuario nuevo = Usuario.builder()
                 .nombreCompleto(nombreCompleto)

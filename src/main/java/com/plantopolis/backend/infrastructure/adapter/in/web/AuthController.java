@@ -204,10 +204,32 @@ public class AuthController {
                 ));
     }
 
+    /**
+     * Cierra la sesión activa del usuario, invalidando su token en la base de datos
+     * y eliminando la cookie HttpOnly del navegador.
+     *
+     * @param principal Identidad del usuario autenticado si la petición incluye credenciales activas
+     * @param request Petición HTTP para inspeccionar cookies si principal es nulo
+     * @return Respuesta HTTP 200 con la cookie de sesión reseteada a maxAge 0
+     */
     @PostMapping("/logout")
-    public ResponseEntity<Void> logout(java.security.Principal principal) {
-        if (principal != null) {
-            usuarioRepository.buscarPorEmail(principal.getName()).ifPresent(usuario -> {
+    public ResponseEntity<Void> logout(java.security.Principal principal, jakarta.servlet.http.HttpServletRequest request) {
+        String email = (principal != null) ? principal.getName() : null;
+        if (email == null && request != null && request.getCookies() != null) {
+            for (jakarta.servlet.http.Cookie cookie : request.getCookies()) {
+                if ("jwt_token".equals(cookie.getName()) && cookie.getValue() != null && !cookie.getValue().isBlank()) {
+                    try {
+                        email = jwtUtil.extraerEmail(cookie.getValue());
+                    } catch (Exception ignored) {
+                        // Token expirado o malformado
+                    }
+                    break;
+                }
+            }
+        }
+
+        if (email != null) {
+            usuarioRepository.buscarPorEmail(email).ifPresent(usuario -> {
                 usuario.setUltimoToken(null);
                 usuarioRepository.guardar(usuario);
             });
