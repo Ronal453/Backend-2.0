@@ -1,6 +1,7 @@
 package com.plantopolis.backend.infrastructure.config;
 
 import com.plantopolis.backend.infrastructure.security.JwtAuthenticationFilter;
+import com.plantopolis.backend.infrastructure.security.SystemActionAuditFilter;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -34,6 +35,9 @@ public class SecurityConfig {
 
     // Filtro que extrae y valida el token JWT en cada request entrante
     private final JwtAuthenticationFilter jwtFilter;
+
+    // Filtro de auditoría que registra en tiempo real las acciones procesadas por el sistema
+    private final SystemActionAuditFilter systemActionAuditFilter;
 
     // Proveedor de autenticación configurado en BeanConfig (DaoAuthenticationProvider)
     private final AuthenticationProvider authenticationProvider;
@@ -132,7 +136,8 @@ public class SecurityConfig {
             // Insertar el filtro JWT ANTES del filtro estándar de Spring
             // Así, si el JWT es válido, el contexto de seguridad ya está listo
             // cuando el request llega al controller
-            .addFilterBefore(jwtFilter, UsernamePasswordAuthenticationFilter.class);
+            .addFilterBefore(jwtFilter, UsernamePasswordAuthenticationFilter.class)
+            .addFilterAfter(systemActionAuditFilter, JwtAuthenticationFilter.class);
 
         return http.build();
     }
