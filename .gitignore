@@ -32,6 +32,12 @@ build/
 ### VS Code ###
 .vscode/
 
-# Configuración local 
+# Configuración local sensible (variables de entorno)
 .env
 .env.local
+
+# Respaldos y volcados de base de datos con datos reales (seguridad en repositorios públicos)
+*.sql
+!postgres-init/01-init-plantopolis.sql
+backups/
+*.dump

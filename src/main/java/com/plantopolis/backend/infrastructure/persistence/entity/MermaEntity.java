@@ -34,8 +34,11 @@ public class MermaEntity {
     @Column(name = "FECHA_MERMA", nullable = false)
     private LocalDate fechaMerma;
 
-    @Lob
-    @Column(name = "OBSERVACIONES")
+    /**
+     * Detalle u observaciones sobre la pérdida sufrida en el lote.
+     * Mapeado como TEXT para compatibilidad directa con PostgreSQL.
+     */
+    @Column(name = "OBSERVACIONES", columnDefinition = "TEXT")
     private String observaciones;
 
     @Column(name = "FECHA_REGISTRO", nullable = false)

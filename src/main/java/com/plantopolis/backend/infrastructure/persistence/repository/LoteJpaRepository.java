@@ -8,14 +8,21 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
+/**
+ * Repositorio JPA para lotes de producción botánica.
+ */
 @Repository
 public interface LoteJpaRepository extends JpaRepository<LoteProduccionEntity, Long> {
 
+    /**
+     * Filtra lotes por zona, estado y término de búsqueda (código o especie).
+     * Incluye CAST explícito a string para compatibilidad con PostgreSQL cuando los parámetros son nulos.
+     */
     @Query("""
         SELECT l FROM LoteProduccionEntity l
         WHERE (:idZona IS NULL OR l.idZona = :idZona)
-          AND (:estadoLote IS NULL OR UPPER(l.estadoLote) = UPPER(:estadoLote))
-          AND (:termino IS NULL OR UPPER(l.codigoLote) LIKE UPPER(CONCAT('%', :termino, '%')) OR UPPER(l.especie) LIKE UPPER(CONCAT('%', :termino, '%')))
+          AND (CAST(:estadoLote AS string) IS NULL OR UPPER(l.estadoLote) = UPPER(CAST(:estadoLote AS string)))
+          AND (CAST(:termino AS string) IS NULL OR UPPER(l.codigoLote) LIKE UPPER(CONCAT('%', CAST(:termino AS string), '%')) OR UPPER(l.especie) LIKE UPPER(CONCAT('%', CAST(:termino AS string), '%')))
     """)
     Page<LoteProduccionEntity> buscarConFiltros(
             @Param("idZona") Long idZona,

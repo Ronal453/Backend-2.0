@@ -30,8 +30,11 @@ public class HistorialEstadoLoteEntity {
     @Column(name = "ESTADO_NUEVO", nullable = false, length = 40)
     private String estadoNuevo;
 
-    @Lob
-    @Column(name = "OBSERVACIONES")
+    /**
+     * Observaciones registradas durante la transición de etapa del lote.
+     * Mapeado como TEXT para compatibilidad directa con PostgreSQL.
+     */
+    @Column(name = "OBSERVACIONES", columnDefinition = "TEXT")
     private String observaciones;
 
     @Column(name = "FECHA_CAMBIO", nullable = false)

@@ -9,15 +9,22 @@ import org.springframework.data.repository.query.Param;
 
 import java.util.Optional;
 
+/**
+ * Repositorio JPA para la entidad UsuarioEntity.
+ */
 public interface UsuarioJpaRepository extends JpaRepository<UsuarioEntity, Long> {
     Optional<UsuarioEntity> findByCorreo(String correo);
     boolean existsByCorreo(String correo);
 
+    /**
+     * Búsqueda paginada de usuarios con filtros opcionales de texto, rol y estado activo.
+     * Utiliza CAST(:nombre AS string) para evitar errores de inferencia de tipos nulos en PostgreSQL.
+     */
     @Query("""
         SELECT u FROM UsuarioEntity u
-        WHERE (:nombre IS NULL OR
-               LOWER(u.nombreCompleto) LIKE LOWER(CONCAT('%', :nombre, '%')) OR
-               LOWER(u.correo) LIKE LOWER(CONCAT('%', :nombre, '%')))
+        WHERE (CAST(:nombre AS string) IS NULL OR
+               LOWER(u.nombreCompleto) LIKE LOWER(CONCAT('%', CAST(:nombre AS string), '%')) OR
+               LOWER(u.correo) LIKE LOWER(CONCAT('%', CAST(:nombre AS string), '%')))
           AND (:idRol IS NULL OR u.idRol = :idRol)
           AND (:activo IS NULL OR u.activo = :activo)
         ORDER BY u.nombreCompleto

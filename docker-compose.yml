@@ -1,24 +1,30 @@
-name: plantopolis 
+name: plantopolis
 services:
 
-  # ── BASE DE DATOS ─────────────────────────────────────────
-  oracle-xe:
-    # Imagen oficial de Oracle Database 21c Express Edition
-    image: container-registry.oracle.com/database/express:21.3.0-xe
-    container_name: oracle-xe
+  # ── BASE DE DATOS PostgreSQL ──────────────────────────────
+  postgres-db:
+    image: postgres:16-alpine
+    container_name: plantopolis-postgres
     ports:
-      - "1521:1521"   # Puerto principal de conexión a Oracle
-      - "5500:5500"   # Puerto del Oracle EM Express (interfaz web admin)
+      - "5432:5432"
     environment:
-      ORACLE_PWD: Plantopolis123        # Contraseña para SYS y SYSTEM
-      ORACLE_CHARACTERSET: AL32UTF8    # Soporte de tildes y caracteres especiales
+      POSTGRES_DB: plantopolis
+      POSTGRES_USER: ${DB_USERNAME}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+      TZ: America/Bogota
     volumes:
-      # Volumen persistente — los datos sobreviven si se elimina el contenedor
-      # Sin esto, toda la BD se pierde al hacer docker rm
-      - oracle_data:/opt/oracle/oradata
+      # Volumen persistente de PostgreSQL
+      - postgres_data:/var/lib/postgresql/data
+      # Script de inicialización automática (esquema + semillas demo)
+      - ./postgres-init:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
     networks:
-      - plantopolis-net   # Red interna compartida con backend y frontend
-    restart: unless-stopped   # Se reinicia automáticamente si falla
+      - plantopolis-net
+    restart: unless-stopped
 
   # ── BACKEND Spring Boot ───────────────────────────────────
   backend:
@@ -29,16 +35,16 @@ services:
     ports:
       - "8080:8080"
     environment:
-      SPRING_DATASOURCE_URL: jdbc:oracle:thin:@//oracle-xe:1521/XEPDB1
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres-db:5432/plantopolis
       SPRING_DATASOURCE_USERNAME: ${DB_USERNAME}
       SPRING_DATASOURCE_PASSWORD: ${DB_PASSWORD}
-      # NUEVO: Resend reemplaza SMTP (bloqueado por la red).
       RESEND_API_KEY: ${RESEND_API_KEY}
       MAIL_FROM: ${MAIL_FROM}
       JWT_SECRET: ${JWT_SECRET}
       GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID}
     depends_on:
-      - oracle-xe
+      postgres-db:
+        condition: service_healthy
     networks:
       - plantopolis-net
     restart: unless-stopped
@@ -50,25 +56,18 @@ services:
       dockerfile: Dockerfile
     container_name: plantopolis-frontend
     ports:
-      # Puerto 5173 del host → puerto 80 del contenedor (Nginx)
       - "5173:80"
     depends_on:
-      - backend   # Espera que el backend inicie antes de arrancar el frontend
+      - backend
     networks:
       - plantopolis-net
     restart: unless-stopped
 
 # ── VOLÚMENES ─────────────────────────────────────────────
 volumes:
-  oracle_data:
-    # Volumen gestionado por Docker — persiste los datos de Oracle
-    # Ubicación real: /var/lib/docker/volumes/oracle_data/_data
-    # Para eliminarlo manualmente: docker volume rm oracle_data
+  postgres_data:
 
 # ── RED ───────────────────────────────────────────────────
 networks:
   plantopolis-net:
     driver: bridge
-    # Red bridge privada que conecta los 3 contenedores entre sí
-    # Los contenedores se comunican por nombre: "oracle-xe", "backend", "frontend"
-    # Desde fuera solo son accesibles por los puertos expuestos (1521, 8080, 5173)

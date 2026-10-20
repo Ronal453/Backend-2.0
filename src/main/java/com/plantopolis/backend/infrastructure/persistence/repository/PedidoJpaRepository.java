@@ -11,6 +11,9 @@ import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 
+/**
+ * Repositorio JPA para la gestión de pedidos y consultas agregadas de ventas.
+ */
 public interface PedidoJpaRepository extends JpaRepository<PedidoEntity, Long> {
 
     @Query("""
@@ -50,13 +53,13 @@ public interface PedidoJpaRepository extends JpaRepository<PedidoEntity, Long> {
             LEFT JOIN FETCH p.pago pago
             LEFT JOIN FETCH pago.metodo
             LEFT JOIN FETCH pago.estadoPago
-            WHERE (:estado IS NULL OR p.estado.descripcionEstado = :estado)
+            WHERE (CAST(:estado AS string) IS NULL OR p.estado.descripcionEstado = :estado)
             ORDER BY p.fechaPedido DESC
         """,
         countQuery = """
             SELECT COUNT(DISTINCT p) FROM PedidoEntity p
             JOIN p.estado
-            WHERE (:estado IS NULL OR p.estado.descripcionEstado = :estado)
+            WHERE (CAST(:estado AS string) IS NULL OR p.estado.descripcionEstado = :estado)
         """
     )
     Page<PedidoEntity> findAllAdminWithFilters(@Param("estado") String estado, Pageable pageable);
@@ -87,14 +90,17 @@ public interface PedidoJpaRepository extends JpaRepository<PedidoEntity, Long> {
 
     List<PedidoEntity> findByIdUsuarioOrderByFechaPedidoDesc(Long idUsuario);
 
-    /** Pedidos por rango de fecha, para exportación CSV (LEFT JOIN FETCH detalles evita LazyInit). */
+    /**
+     * Pedidos por rango de fecha, para exportación CSV (LEFT JOIN FETCH detalles evita LazyInit).
+     * Se usa CAST explícito a timestamp para que PostgreSQL resuelva correctamente parámetros nulos.
+     */
     @Query("""
         SELECT DISTINCT p FROM PedidoEntity p
         JOIN FETCH p.estado
         JOIN FETCH p.usuario
         LEFT JOIN FETCH p.detalles d
-        WHERE (:fechaInicio IS NULL OR p.fechaPedido >= :fechaInicio)
-          AND (:fechaFin IS NULL OR p.fechaPedido <= :fechaFin)
+        WHERE (CAST(:fechaInicio AS timestamp) IS NULL OR p.fechaPedido >= :fechaInicio)
+          AND (CAST(:fechaFin AS timestamp) IS NULL OR p.fechaPedido <= :fechaFin)
         ORDER BY p.fechaPedido DESC
     """)
     List<PedidoEntity> buscarPorRangoFecha(

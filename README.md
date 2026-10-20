@@ -18,9 +18,9 @@ Proveer una API robusta y segura que soporte el flujo completo de compra de plan
 | Spring Boot | 3.5.x | Framework backend |
 | Spring Security | 6.x | Autenticación y autorización |
 | JWT (jjwt) | 0.12.6 | Tokens de sesión |
-| Oracle Database XE | 21.3 | Base de datos |
+| PostgreSQL | 16 | Base de datos relacional |
 | Hibernate / JPA | 6.x | ORM |
-| JavaMail | - | Notificaciones por email |
+| Resend | - | Notificaciones por email |
 | Springdoc OpenAPI | 2.3.0 | Documentación Swagger |
 | Lombok | - | Reducción de código boilerplate |
 | Docker | - | Contenedorización |
@@ -59,12 +59,12 @@ src/main/java/com/plantopolis/backend/
 
 **Prerrequisitos:**
 - Docker Desktop instalado
-- Contenedor Oracle XE corriendo
+- Docker Desktop instalado y en ejecución
 
 ```bash
 # 1. Crear red Docker (solo la primera vez)
 docker network create plantopolis-net
-docker network connect plantopolis-net oracle-xe
+docker compose up -d
 
 # 2. Configurar variables de entorno
 cp .env.example .env
@@ -82,7 +82,7 @@ docker ps
 **Prerrequisitos:**
 - Java 17
 - Maven 3.9+
-- Oracle XE corriendo en localhost:1521
+- PostgreSQL 16 corriendo en localhost:5432
 
 ```bash
 # Configurar application.yml con tus datos de BD
@@ -117,11 +117,11 @@ Copia `.env.example` como `.env` y completa con tus datos:
 
 | Variable | Descripción |
 |---|---|
-| `DB_USERNAME` | Usuario de Oracle |
-| `DB_PASSWORD` | Contraseña de Oracle |
+| `DB_USERNAME` | Usuario de PostgreSQL (`plantopolis_user`) |
+| `DB_PASSWORD` | Contraseña de PostgreSQL |
 | `JWT_SECRET` | Clave secreta para JWT (mínimo 256 bits) |
-| `MAIL_USERNAME` | Email de Gmail para notificaciones |
-| `MAIL_PASSWORD` | App Password de Gmail |
+| `RESEND_API_KEY` | API Key de Resend para notificaciones |
+| `MAIL_FROM` | Remitente de correo (ej. onboarding@resend.dev) |
 
 > ⚠️ **Nunca subas el archivo `.env` a GitHub**
 

@@ -4,6 +4,9 @@ import jakarta.persistence.*;
 import lombok.*;
 import java.math.BigDecimal;
 
+/**
+ * Entidad JPA para la tabla PRODUCTO.
+ */
 @Entity
 @Table(name = "PRODUCTO")
 @Data
@@ -26,8 +29,11 @@ public class ProductoEntity {
     @Column(name = "NOMBRE_PRODUCTO", nullable = false, length = 150)
     private String nombreProducto;
 
-    @Lob
-    @Column(name = "DESCRIPCION")
+    /**
+     * Descripción comercial y botánica del producto.
+     * Se usa columnDefinition = "TEXT" en lugar de @Lob para evitar errores de OID en PostgreSQL.
+     */
+    @Column(name = "DESCRIPCION", columnDefinition = "TEXT")
     private String descripcion;
 
     @Column(name = "PRECIO", nullable = false, precision = 10, scale = 2)
@@ -47,8 +53,11 @@ public class ProductoEntity {
     @Column(name = "IMAGEN_URL", length = 300)
     private String imagenUrl;
 
-    @Lob
-    @Column(name = "CUIDADOS")
+    /**
+     * Recomendaciones detalladas de cuidado para la ficha técnica.
+     * Se usa columnDefinition = "TEXT" en lugar de @Lob para compatibilidad con PostgreSQL.
+     */
+    @Column(name = "CUIDADOS", columnDefinition = "TEXT")
     private String cuidados;
 
     @Column(name = "LUZ", length = 100)

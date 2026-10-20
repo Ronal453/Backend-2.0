@@ -27,14 +27,15 @@ public interface ProveedorJpaRepository extends JpaRepository<ProveedorEntity, L
     /**
      * Búsqueda con filtros opcionales: cada parámetro nulo se ignora.
      * El término se compara contra nombre y contacto sin distinguir mayúsculas.
+     * Se usa CAST explícito a string para evitar errores de inferencia en PostgreSQL.
      */
     @Query("""
         SELECT p FROM ProveedorEntity p
-        WHERE (:tipoInsumo IS NULL OR UPPER(p.tipoInsumo) = UPPER(:tipoInsumo))
+        WHERE (CAST(:tipoInsumo AS string) IS NULL OR UPPER(p.tipoInsumo) = UPPER(CAST(:tipoInsumo AS string)))
           AND (:activo IS NULL OR p.activo = :activo)
-          AND (:termino IS NULL
-               OR UPPER(p.nombre) LIKE UPPER(CONCAT('%', :termino, '%'))
-               OR UPPER(p.contacto) LIKE UPPER(CONCAT('%', :termino, '%')))
+          AND (CAST(:termino AS string) IS NULL
+               OR UPPER(p.nombre) LIKE UPPER(CONCAT('%', CAST(:termino AS string), '%'))
+               OR UPPER(p.contacto) LIKE UPPER(CONCAT('%', CAST(:termino AS string), '%')))
         ORDER BY p.nombre ASC
     """)
     List<ProveedorEntity> buscarConFiltros(

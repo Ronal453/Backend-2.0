@@ -24,8 +24,11 @@ public class ComentarioTareaEntity {
     @Column(name = "ID_USUARIO", nullable = false)
     private Long idUsuario;
 
-    @Lob
-    @Column(name = "COMENTARIO", nullable = false)
+    /**
+     * Contenido textual de la observación o nota en la tarea.
+     * Se usa columnDefinition = "TEXT" en lugar de @Lob para evitar mapeo OID en PostgreSQL.
+     */
+    @Column(name = "COMENTARIO", nullable = false, columnDefinition = "TEXT")
     private String comentario;
 
     @Column(name = "FECHA_CREACION", nullable = false)

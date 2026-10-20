@@ -16,11 +16,15 @@ import java.util.List;
 @Repository
 public interface TareaJpaRepository extends JpaRepository<TareaEntity, Long> {
 
+    /**
+     * Filtra tareas operativas para el tablero del trabajador.
+     * Usa CAST explícito a string para compatibilidad con PostgreSQL cuando los filtros son nulos.
+     */
     @Query("""
         SELECT t FROM TareaEntity t
         WHERE (:idTrabajador IS NULL OR t.idTrabajadorAsignado = :idTrabajador)
-          AND (:estado IS NULL OR UPPER(t.estadoTarea) = UPPER(:estado))
-          AND (:prioridad IS NULL OR UPPER(t.prioridad) = UPPER(:prioridad))
+          AND (CAST(:estado AS string) IS NULL OR UPPER(t.estadoTarea) = UPPER(CAST(:estado AS string)))
+          AND (CAST(:prioridad AS string) IS NULL OR UPPER(t.prioridad) = UPPER(CAST(:prioridad AS string)))
         ORDER BY t.fechaLimite ASC, t.idTarea DESC
     """)
     List<TareaEntity> buscarConFiltros(
@@ -29,11 +33,14 @@ public interface TareaJpaRepository extends JpaRepository<TareaEntity, Long> {
             @Param("prioridad") String prioridad
     );
 
+    /**
+     * Filtra tareas para el panel administrativo con soporte de múltiples criterios opcionales.
+     */
     @Query("""
         SELECT t FROM TareaEntity t
-        WHERE (:estado IS NULL OR UPPER(t.estadoTarea) = UPPER(:estado))
-          AND (:prioridad IS NULL OR UPPER(t.prioridad) = UPPER(:prioridad))
-          AND (:tipo IS NULL OR UPPER(t.tipoTarea) = UPPER(:tipo))
+        WHERE (CAST(:estado AS string) IS NULL OR UPPER(t.estadoTarea) = UPPER(CAST(:estado AS string)))
+          AND (CAST(:prioridad AS string) IS NULL OR UPPER(t.prioridad) = UPPER(CAST(:prioridad AS string)))
+          AND (CAST(:tipo AS string) IS NULL OR UPPER(t.tipoTarea) = UPPER(CAST(:tipo AS string)))
           AND (:idTrabajador IS NULL OR t.idTrabajadorAsignado = :idTrabajador)
           AND (:sinAsignar IS NULL OR (:sinAsignar = true AND t.idTrabajadorAsignado IS NULL) OR (:sinAsignar = false AND t.idTrabajadorAsignado IS NOT NULL))
           AND (:soloVencidas IS NULL OR (:soloVencidas = true AND t.fechaLimite < :hoy AND t.estadoTarea <> 'COMPLETADA'))

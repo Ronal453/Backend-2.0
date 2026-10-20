@@ -10,13 +10,20 @@ import org.springframework.data.repository.query.Param;
 import java.math.BigDecimal;
 import java.util.List;
 
+/**
+ * Repositorio JPA para consultas de productos del catálogo público y panel administrativo.
+ */
 public interface ProductoJpaRepository extends JpaRepository<ProductoEntity, Long> {
 
+    /**
+     * Filtra productos activos del catálogo público.
+     * Utiliza CAST(:nombre AS string) para garantizar compatibilidad de tipos en PostgreSQL cuando el filtro es nulo.
+     */
     @Query("""
         SELECT p FROM ProductoEntity p
         WHERE p.activo = true
-          AND (:nombre IS NULL OR 
-               LOWER(p.nombreProducto) LIKE LOWER(CONCAT('%', :nombre, '%')))
+          AND (CAST(:nombre AS string) IS NULL OR 
+               LOWER(p.nombreProducto) LIKE LOWER(CONCAT('%', CAST(:nombre AS string), '%')))
           AND (:idCategoria IS NULL OR p.idCategoria = :idCategoria)
           AND (:idTipo IS NULL OR p.idTipo = :idTipo)
           AND (:precioMin IS NULL OR p.precio >= :precioMin)
@@ -31,10 +38,13 @@ public interface ProductoJpaRepository extends JpaRepository<ProductoEntity, Lon
             Pageable pageable
     );
 
+    /**
+     * Filtra productos para la vista de administración incluyendo activos e inactivos.
+     */
     @Query("""
         SELECT p FROM ProductoEntity p
-        WHERE (:nombre IS NULL OR 
-               LOWER(p.nombreProducto) LIKE LOWER(CONCAT('%', :nombre, '%')))
+        WHERE (CAST(:nombre AS string) IS NULL OR 
+               LOWER(p.nombreProducto) LIKE LOWER(CONCAT('%', CAST(:nombre AS string), '%')))
           AND (:idCategoria IS NULL OR p.idCategoria = :idCategoria)
           AND (:idTipo IS NULL OR p.idTipo = :idTipo)
           AND (:activo IS NULL OR p.activo = :activo)
