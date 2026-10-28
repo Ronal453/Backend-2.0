@@ -17,7 +17,8 @@ public interface UsuarioJpaRepository extends JpaRepository<UsuarioEntity, Long>
     boolean existsByCorreo(String correo);
 
     /**
-     * Búsqueda paginada de usuarios con filtros opcionales de texto, rol y estado activo.
+     * Búsqueda paginada de personal con filtros opcionales de texto, rol y estado activo.
+     * Restringido exclusivamente al personal operativo y directivo (ADMINISTRADOR=1 y TRABAJADOR=2).
      * Utiliza CAST(:nombre AS string) para evitar errores de inferencia de tipos nulos en PostgreSQL.
      */
     @Query("""
@@ -25,6 +26,7 @@ public interface UsuarioJpaRepository extends JpaRepository<UsuarioEntity, Long>
         WHERE (CAST(:nombre AS string) IS NULL OR
                LOWER(u.nombreCompleto) LIKE LOWER(CONCAT('%', CAST(:nombre AS string), '%')) OR
                LOWER(u.correo) LIKE LOWER(CONCAT('%', CAST(:nombre AS string), '%')))
+          AND u.idRol IN (1, 2)
           AND (:idRol IS NULL OR u.idRol = :idRol)
           AND (:activo IS NULL OR u.activo = :activo)
         ORDER BY u.nombreCompleto

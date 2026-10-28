@@ -26,9 +26,9 @@ import org.springframework.web.bind.annotation.*;
 @RequestMapping("/api/admin/usuarios")
 @RequiredArgsConstructor
 @Tag(
-    name = "Admin — Usuarios",
-    description = "Gestión de cuentas de usuario: listar, crear trabajadores, activar/desactivar " +
-                  "y resetear contraseñas. 🔒 Requiere token JWT + rol ADMINISTRADOR."
+    name = "Admin — Usuarios y Personal",
+    description = "Gestión de personal del vivero (Trabajadores y Administradores): listar, crear trabajadores, " +
+                  "activar/desactivar y resetear contraseñas. 🔒 Requiere token JWT + rol ADMINISTRADOR."
 )
 @SecurityRequirement(name = "Bearer Authentication")
 public class AdminUsuarioController {
@@ -36,9 +36,9 @@ public class AdminUsuarioController {
     private final GestionarUsuariosAdminUseCase usuariosUseCase;
 
     @Operation(
-        summary = "Listar usuarios",
-        description = "Devuelve una página de usuarios con filtros opcionales por " +
-                      "nombre/correo, rol (1=ADMINISTRADOR, 2=TRABAJADOR, 3=CLIENTE) y estado."
+        summary = "Listar personal (Administradores y Trabajadores)",
+        description = "Devuelve una página de cuentas de administración y trabajadores con filtros opcionales por " +
+                      "nombre/correo, rol (1=ADMINISTRADOR, 2=TRABAJADOR) y estado."
     )
     @ApiResponse(responseCode = "200", description = "Lista de usuarios paginada")
     @GetMapping
