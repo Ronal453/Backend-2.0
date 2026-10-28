@@ -183,6 +183,30 @@ public class EmailAdapter implements NotificacionPort {
         }
     }
 
+    // ─────────────────────────────────────────────────────────────────────
+    /**
+     * Envía un correo con el enlace seguro y token temporal para restablecer la contraseña (HU2).
+     *
+     * @param emailDestino Correo del usuario que solicitó el restablecimiento
+     * @param nombreDestino Nombre completo del usuario
+     * @param enlaceRecuperacion Enlace completo que apunta a /resetear-password?token=...
+     * @return true si la solicitud fue recibida por Resend; false en caso de fallo
+     */
+    @Override
+    public boolean enviarRecuperacionPassword(String emailDestino, String nombreDestino, String enlaceRecuperacion) {
+        try {
+            log.info("Enviando correo de recuperación de contraseña a: {}", emailDestino);
+            String asunto = "🔐 Restablecer contraseña — Plantopolis";
+            String html = construirHtmlRecuperacionPassword(nombreDestino, enlaceRecuperacion);
+            enviarEmailViaResend(emailDestino, asunto, html);
+            log.info("✅ Correo de recuperación de contraseña enviado exitosamente a: {}", emailDestino);
+            return true;
+        } catch (Exception e) {
+            log.error("❌ Error enviando correo de recuperación a {}: {}", emailDestino, e.getMessage());
+            return false;
+        }
+    }
+
     // ═════════════════════════════════════════════════════════════════════
     // PLANTILLAS HTML
     // ═════════════════════════════════════════════════════════════════════
@@ -915,5 +939,89 @@ public class EmailAdapter implements NotificacionPort {
         nombreAdmin != null ? nombreAdmin : "Administrador",
         tareasVencidas.size(),
         filasHtml.toString());
+    }
+
+    private String construirHtmlRecuperacionPassword(String nombreUsuario, String enlaceRecuperacion) {
+        String saludoNombre = (nombreUsuario != null && !nombreUsuario.isBlank())
+                ? nombreUsuario
+                : "Usuario";
+
+        return String.format("""
+            <!DOCTYPE html>
+            <html lang="es">
+            <head>
+              <meta charset="UTF-8"/>
+              <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+              <title>Restablecer contraseña — Plantopolis</title>
+            </head>
+            <body style="margin:0;padding:0;background-color:#f4f7f4;font-family:Arial,Helvetica,sans-serif;">
+              <table width="100%%" cellpadding="0" cellspacing="0" style="background-color:#f4f7f4;padding:24px 0;">
+                <tr>
+                  <td align="center">
+                    <table width="580" cellpadding="0" cellspacing="0" style="max-width:580px;width:100%%;">
+                      <tr>
+                        <td style="background-color:#0E4F2F;border-radius:12px 12px 0 0;padding:32px 40px;text-align:center;">
+                          <p style="margin:0;font-size:36px;">🌱</p>
+                          <h1 style="margin:8px 0 0;color:#ffffff;font-size:24px;font-weight:700;">Plantopolis</h1>
+                          <p style="margin:4px 0 0;color:#a8d5b8;font-size:13px;">Seguridad de la Cuenta</p>
+                        </td>
+                      </tr>
+                      <tr>
+                        <td style="background-color:#ffffff;padding:36px 40px;">
+                          <div style="text-align:center;margin-bottom:24px;">
+                            <div style="background-color:#e8f5e9;border-radius:50%%;width:56px;height:56px;margin:0 auto 16px;display:inline-flex;align-items:center;justify-content:center;font-size:28px;">
+                              🔐
+                            </div>
+                            <h2 style="margin:0;color:#1a1a1a;font-size:20px;font-weight:700;">
+                              ¿Olvidaste tu contraseña?
+                            </h2>
+                            <p style="margin:10px 0 0;color:#555555;font-size:15px;line-height:1.5;">
+                              Hola <strong>%s</strong>, recibimos una solicitud para restablecer la contraseña de tu cuenta en Plantopolis.
+                            </p>
+                          </div>
+
+                          <div style="text-align:center;margin:32px 0;">
+                            <a href="%s" target="_blank"
+                               style="background-color:#0E4F2F;color:#ffffff;text-decoration:none;font-size:15px;font-weight:700;padding:14px 32px;border-radius:10px;display:inline-block;box-shadow:0 4px 12px rgba(14,79,47,0.25);">
+                              Restablecer mi contraseña
+                            </a>
+                          </div>
+
+                          <div style="background-color:#f8f9fa;border-left:4px solid #0E4F2F;border-radius:8px;padding:14px 18px;margin-bottom:24px;">
+                            <p style="margin:0;font-size:13px;color:#555555;line-height:1.5;">
+                              ⏱ <strong>Importante:</strong> Este enlace tiene una vigencia de <strong>15 minutos</strong> por motivos de seguridad. Si expira, deberás solicitar uno nuevo.
+                            </p>
+                          </div>
+
+                          <p style="margin:0 0 16px;font-size:13px;color:#777777;line-height:1.5;">
+                            Si no solicitaste este cambio, puedes ignorar este correo de forma segura. Tu contraseña actual no será modificada.
+                          </p>
+
+                          <div style="border-top:1px solid #eeeeee;padding-top:16px;">
+                            <p style="margin:0;font-size:11px;color:#999999;word-break:break-all;">
+                              ¿Problemas con el botón? Copia y pega el siguiente enlace en tu navegador:<br/>
+                              <a href="%s" style="color:#0E4F2F;text-decoration:underline;">%s</a>
+                            </p>
+                          </div>
+                        </td>
+                      </tr>
+                      <tr>
+                        <td style="background-color:#1a1a1a;border-radius:0 0 12px 12px;padding:20px 40px;text-align:center;">
+                          <p style="margin:0;color:#ffffff;font-size:13px;font-weight:600;">Plantopolis</p>
+                          <p style="margin:4px 0 0;color:#777777;font-size:11px;">Tu tienda botánica y vivero en línea</p>
+                        </td>
+                      </tr>
+                    </table>
+                  </td>
+                </tr>
+              </table>
+            </body>
+            </html>
+            """,
+            saludoNombre,
+            enlaceRecuperacion,
+            enlaceRecuperacion,
+            enlaceRecuperacion
+        );
     }
 }

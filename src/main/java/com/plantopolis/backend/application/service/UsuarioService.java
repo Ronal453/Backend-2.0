@@ -7,17 +7,21 @@ import com.google.api.client.json.gson.GsonFactory;
 import com.plantopolis.backend.domain.model.Usuario;
 import com.plantopolis.backend.domain.port.in.LoginGoogleUseCase;
 import com.plantopolis.backend.domain.port.in.LoginUseCase;
+import com.plantopolis.backend.domain.port.in.RecuperarPasswordUseCase;
 import com.plantopolis.backend.domain.port.in.RegistrarUsuarioUseCase;
+import com.plantopolis.backend.domain.port.out.NotificacionPort;
 import com.plantopolis.backend.domain.port.out.UsuarioRepositoryPort;
 import com.plantopolis.backend.infrastructure.config.GoogleOAuthConfig;
 import com.plantopolis.backend.infrastructure.security.JwtUtil;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.time.ZoneId;
@@ -27,7 +31,7 @@ import java.util.UUID;
 @Slf4j
 @Service
 @RequiredArgsConstructor
-public class UsuarioService implements RegistrarUsuarioUseCase, LoginUseCase, LoginGoogleUseCase {
+public class UsuarioService implements RegistrarUsuarioUseCase, LoginUseCase, LoginGoogleUseCase, RecuperarPasswordUseCase {
 
     private final UsuarioRepositoryPort usuarioRepository;
     private final PasswordEncoder       passwordEncoder;
@@ -35,6 +39,10 @@ public class UsuarioService implements RegistrarUsuarioUseCase, LoginUseCase, Lo
     private final JwtUtil               jwtUtil;
     private final UserDetailsService    userDetailsService;
     private final GoogleOAuthConfig     googleOAuthConfig;
+    private final NotificacionPort      notificacionPort;
+
+    @Value("${app.frontend.url:http://localhost:5173}")
+    private String frontendUrl;
 
     private static final Long ROL_CLIENTE = 3L;
     private static final ZoneId ZONA_BOGOTA = ZoneId.of("America/Bogota");
@@ -199,5 +207,66 @@ public class UsuarioService implements RegistrarUsuarioUseCase, LoginUseCase, Lo
         usuarioRepository.guardar(guardado);
 
         return new LoginGoogleResult(token, email, rol);
+    }
+
+    /**
+     * Procesa la solicitud de recuperación de contraseña de un usuario (HU2).
+     * Si la cuenta existe y está activa, emite un token JWT de 15 minutos y envía el correo.
+     * Si no existe o está desactivada, no arroja excepción para prevenir enumeración de usuarios (OWASP).
+     *
+     * @param email Correo electrónico suministrado en el formulario
+     */
+    @Override
+    public void solicitarRecuperacion(String email) {
+        if (email == null || email.isBlank()) {
+            return;
+        }
+
+        usuarioRepository.buscarPorEmail(email.trim().toLowerCase()).ifPresent(usuario -> {
+            if (Boolean.TRUE.equals(usuario.getActivo())) {
+                String token = jwtUtil.generarTokenRecuperacion(usuario.getCorreo());
+                String enlace = frontendUrl + "/resetear-password?token=" + token;
+                log.info("Generado token de recuperación para usuario {}. Enviando notificación...", usuario.getCorreo());
+                notificacionPort.enviarRecuperacionPassword(usuario.getCorreo(), usuario.getNombreCompleto(), enlace);
+            } else {
+                log.warn("Solicitud de recuperación ignorada para usuario inactivo: {}", email);
+            }
+        });
+    }
+
+    /**
+     * Valida el token temporal y restablece la contraseña del usuario (HU2).
+     * Invalida cualquier sesión previa o token previo actualizando 'fechaActualizacion' y limpiando 'ultimoToken'.
+     *
+     * @param token Token JWT temporal con propósito RECUPERACION_PASSWORD
+     * @param nuevaPassword Nueva contraseña sin cifrar (validada para cumplir con la longitud mínima)
+     */
+    @Override
+    @Transactional
+    public void restablecerPassword(String token, String nuevaPassword) {
+        if (token == null || !jwtUtil.validarTokenRecuperacion(token)) {
+            throw new IllegalArgumentException("El enlace de recuperación es inválido o ha expirado. Por favor solicita uno nuevo.");
+        }
+
+        if (nuevaPassword == null || !nuevaPassword.trim().matches("^(?=.*[A-Z])(?=.*\\d)(?=.*[@$!%*?&])[A-Za-z\\d@$!%*?&]{8,}$")) {
+            throw new IllegalArgumentException("La contraseña debe tener mínimo 8 caracteres, al menos una mayúscula, un número y un carácter especial (@$!%*?&).");
+        }
+
+        String email = jwtUtil.extraerEmail(token);
+        Usuario usuario = usuarioRepository.buscarPorEmail(email)
+                .orElseThrow(() -> new IllegalArgumentException("Usuario no encontrado"));
+
+        if (!Boolean.TRUE.equals(usuario.getActivo())) {
+            throw new IllegalStateException("La cuenta está desactivada. No es posible cambiar la contraseña.");
+        }
+
+        // Cifrar la nueva contraseña con BCrypt
+        usuario.setContrasenaHash(passwordEncoder.encode(nuevaPassword.trim()));
+        // Invalida sesiones previas forzando re-autenticación
+        usuario.setUltimoToken(null);
+        usuario.setFechaActualizacion(LocalDateTime.now(ZONA_BOGOTA));
+
+        usuarioRepository.guardar(usuario);
+        log.info("Contraseña restablecida exitosamente para el usuario: {}", email);
     }
 }

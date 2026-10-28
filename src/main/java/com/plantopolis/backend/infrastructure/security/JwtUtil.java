@@ -44,9 +44,50 @@ public class JwtUtil {
         return parsearClaims(token).getSubject();
     }
 
+    /** Constante que identifica el propósito de tokens temporales de recuperación de contraseña */
+    public static final String PROPOSITO_RECUPERACION = "RECUPERACION_PASSWORD";
+    /** Duración de 15 minutos en milisegundos para tokens temporales de reseteo */
+    public static final long DURACION_RECUPERACION_MS = 15 * 60 * 1000L;
+
     /** Extrae el rol del token */
     public String extraerRol(String token) {
         return (String) parsearClaims(token).get("rol");
+    }
+
+    /**
+     * Genera un token JWT temporal con vigencia corta (15 minutos) específicamente
+     * para el flujo de autoservicio de recuperación de contraseña (HU2).
+     *
+     * @param email Correo electrónico del usuario que solicita la recuperación
+     * @return Cadena JWT firmada con el claim de propósito correspondiente
+     */
+    public String generarTokenRecuperacion(String email) {
+        Map<String, Object> claims = new HashMap<>();
+        claims.put("proposito", PROPOSITO_RECUPERACION);
+        return Jwts.builder()
+                .claims(claims)
+                .subject(email)
+                .issuedAt(new Date())
+                .expiration(new Date(System.currentTimeMillis() + DURACION_RECUPERACION_MS))
+                .signWith(getSigningKey())
+                .compact();
+    }
+
+    /**
+     * Valida si un token JWT corresponde a una solicitud legítima y vigente de recuperación de contraseña.
+     *
+     * @param token Token JWT recibido
+     * @return true si la firma es válida, no ha expirado y su propósito es RECUPERACION_PASSWORD
+     */
+    public boolean validarTokenRecuperacion(String token) {
+        try {
+            Claims claims = parsearClaims(token);
+            String proposito = (String) claims.get("proposito");
+            return PROPOSITO_RECUPERACION.equals(proposito) && !claims.getExpiration().before(new Date());
+        } catch (JwtException | IllegalArgumentException e) {
+            log.warn("Token de recuperación de contraseña inválido o expirado: {}", e.getMessage());
+            return false;
+        }
     }
 
     /** Valida que el token sea válido y corresponda al usuario */

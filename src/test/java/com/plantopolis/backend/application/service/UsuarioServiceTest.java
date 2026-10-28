@@ -43,6 +43,7 @@ class UsuarioServiceTest {
     @Mock private AuthenticationManager authManager;
     @Mock private JwtUtil               jwtUtil;
     @Mock private UserDetailsService    userDetailsService;
+    @Mock private com.plantopolis.backend.domain.port.out.NotificacionPort notificacionPort;
 
     @InjectMocks
     private UsuarioService sut; // System Under Test
@@ -269,6 +270,80 @@ void registrar_debeAsignarRolCliente() {
             verify(authManager).authenticate(captor.capture());
             assertThat(captor.getValue().getPrincipal()).isEqualTo("ronal@test.com");
             assertThat(captor.getValue().getCredentials()).isEqualTo("password123");
+        }
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════
+    // RECUPERACIÓN DE CONTRASEÑA (HU2)
+    // ═══════════════════════════════════════════════════════════════════════
+
+    @Nested
+    @DisplayName("solicitarRecuperacion() y restablecerPassword()")
+    class RecuperacionPasswordTests {
+
+        @Test
+        @DisplayName("solicitarRecuperacion envía correo si el usuario existe y está activo")
+        void solicitarRecuperacion_enviaCorreoSiExisteYActivo() {
+            Usuario usuario = usuarioGuardado();
+            usuario.setActivo(true);
+            when(usuarioRepository.buscarPorEmail("ronal@test.com")).thenReturn(Optional.of(usuario));
+            when(jwtUtil.generarTokenRecuperacion("ronal@test.com")).thenReturn("recovery-jwt-token");
+
+            sut.solicitarRecuperacion("ronal@test.com");
+
+            verify(jwtUtil).generarTokenRecuperacion("ronal@test.com");
+            verify(notificacionPort).enviarRecuperacionPassword(eq("ronal@test.com"), eq("Ronal Alarcón"), contains("recovery-jwt-token"));
+        }
+
+        @Test
+        @DisplayName("solicitarRecuperacion no envía correo si el usuario no existe")
+        void solicitarRecuperacion_noEnviaSiNoExiste() {
+            when(usuarioRepository.buscarPorEmail("noexiste@test.com")).thenReturn(Optional.empty());
+
+            sut.solicitarRecuperacion("noexiste@test.com");
+
+            verify(notificacionPort, never()).enviarRecuperacionPassword(anyString(), anyString(), anyString());
+        }
+
+        @Test
+        @DisplayName("restablecerPassword arroja excepción si el token es inválido o ha expirado")
+        void restablecerPassword_tokenInvalidoLanzaExcepcion() {
+            when(jwtUtil.validarTokenRecuperacion("token-invalido")).thenReturn(false);
+
+            assertThatThrownBy(() -> sut.restablecerPassword("token-invalido", "NuevaClave123"))
+                    .isInstanceOf(IllegalArgumentException.class)
+                    .hasMessageContaining("El enlace de recuperación es inválido o ha expirado");
+        }
+
+        @Test
+        @DisplayName("restablecerPassword actualiza contraseña con hash y limpia tokens previos")
+        void restablecerPassword_exitoActualizaPasswordYTokens() {
+            Usuario usuario = usuarioGuardado();
+            usuario.setActivo(true);
+            usuario.setUltimoToken("sesion-antigua");
+
+            when(jwtUtil.validarTokenRecuperacion("token-valido")).thenReturn(true);
+            when(jwtUtil.extraerEmail("token-valido")).thenReturn("ronal@test.com");
+            when(usuarioRepository.buscarPorEmail("ronal@test.com")).thenReturn(Optional.of(usuario));
+            when(passwordEncoder.encode("NuevaClave123!")).thenReturn("$2a$newHash");
+
+            sut.restablecerPassword("token-valido", "NuevaClave123!");
+
+            verify(passwordEncoder).encode("NuevaClave123!");
+            verify(usuarioRepository).guardar(usuario);
+            assertThat(usuario.getContrasenaHash()).isEqualTo("$2a$newHash");
+            assertThat(usuario.getUltimoToken()).isNull();
+            assertThat(usuario.getFechaActualizacion()).isNotNull();
+        }
+
+        @Test
+        @DisplayName("restablecerPassword rechaza contraseña que no cumple la política corporativa")
+        void restablecerPassword_passwordInseguraLanzaExcepcion() {
+            when(jwtUtil.validarTokenRecuperacion("token-valido")).thenReturn(true);
+
+            assertThatThrownBy(() -> sut.restablecerPassword("token-valido", "insegura"))
+                    .isInstanceOf(IllegalArgumentException.class)
+                    .hasMessageContaining("La contraseña debe tener mínimo 8 caracteres");
         }
     }
 }

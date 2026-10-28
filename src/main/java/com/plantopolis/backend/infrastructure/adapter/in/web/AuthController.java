@@ -6,7 +6,9 @@ import com.plantopolis.backend.domain.port.in.RegistrarUsuarioUseCase;
 import com.plantopolis.backend.infrastructure.adapter.in.web.dto.AuthResponse;
 import com.plantopolis.backend.infrastructure.adapter.in.web.dto.GoogleLoginRequest;
 import com.plantopolis.backend.infrastructure.adapter.in.web.dto.LoginRequest;
+import com.plantopolis.backend.infrastructure.adapter.in.web.dto.RecuperarPasswordRequest;
 import com.plantopolis.backend.infrastructure.adapter.in.web.dto.RegistroRequest;
+import com.plantopolis.backend.infrastructure.adapter.in.web.dto.ResetearPasswordRequest;
 import com.plantopolis.backend.infrastructure.security.JwtUtil;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.media.Content;
@@ -38,6 +40,7 @@ public class AuthController {
     private final RegistrarUsuarioUseCase registrarUseCase;
     private final LoginUseCase            loginUseCase;
     private final LoginGoogleUseCase      loginGoogleUseCase;
+    private final com.plantopolis.backend.domain.port.in.RecuperarPasswordUseCase recuperarPasswordUseCase;
 
     //  Inyectamos JwtUtil para extraer el rol del token
     private final JwtUtil jwtUtil;
@@ -246,5 +249,36 @@ public class AuthController {
         return ResponseEntity.ok()
                 .header(HttpHeaders.SET_COOKIE, clearCookie.toString())
                 .build();
+    }
+
+    // ── RECUPERACIÓN DE CONTRASEÑA (HU2) ──────────────────────────────────
+    @Operation(
+        summary = "Solicitar enlace de recuperación de contraseña",
+        description = "Envía un correo con un token temporal de 15 minutos para restablecer la contraseña si el email está registrado (HU2)."
+    )
+    @PostMapping("/recuperar-password")
+    public ResponseEntity<java.util.Map<String, String>> recuperarPassword(
+            @Valid @RequestBody RecuperarPasswordRequest request) {
+
+        recuperarPasswordUseCase.solicitarRecuperacion(request.email());
+
+        return ResponseEntity.ok(java.util.Map.of(
+                "mensaje", "Si la dirección de correo coincide con una cuenta activa, recibirás un enlace de recuperación en los próximos minutos."
+        ));
+    }
+
+    @Operation(
+        summary = "Restablecer contraseña con token temporal",
+        description = "Valida el token de recuperación y actualiza la contraseña del usuario (HU2)."
+    )
+    @PostMapping("/resetear-password")
+    public ResponseEntity<java.util.Map<String, String>> resetearPassword(
+            @Valid @RequestBody ResetearPasswordRequest request) {
+
+        recuperarPasswordUseCase.restablecerPassword(request.token(), request.nuevaPassword());
+
+        return ResponseEntity.ok(java.util.Map.of(
+                "mensaje", "Tu contraseña ha sido restablecida exitosamente. Ya puedes iniciar sesión con tus nuevas credenciales."
+        ));
     }
 }
