@@ -106,6 +106,50 @@ public class AdminUsuarioController {
     }
 
     @Operation(
+        summary = "Crear cuenta de administrador",
+        description = "Crea una nueva cuenta con rol ADMINISTRADOR, asignando nombre, correo " +
+                      "y una contraseña inicial. Solo puede usarse desde el panel ADMINISTRADOR. " +
+                      "El administrador queda activo de inmediato y puede iniciar sesión con la " +
+                      "contraseña indicada."
+    )
+    @ApiResponses({
+        @ApiResponse(
+            responseCode = "201",
+            description = "Administrador creado correctamente",
+            content = @Content(examples = @ExampleObject(value = """
+                {
+                  "idUsuario": 14,
+                  "nombreCompleto": "Laura Morales",
+                  "correo": "laura.admin@plantopolis.com",
+                  "telefono": null,
+                  "direccion": null,
+                  "rol": "ADMINISTRADOR",
+                  "activo": true,
+                  "fechaRegistro": "2026-09-15T11:00:00"
+                }
+                """))
+        ),
+        @ApiResponse(responseCode = "409", description = "El correo ya está registrado"),
+        @ApiResponse(responseCode = "400", description = "Datos inválidos"),
+        @ApiResponse(responseCode = "403", description = "No es administrador")
+    })
+    @PostMapping("/administradores")
+    @PreAuthorize("hasRole('ADMINISTRADOR')")
+    public ResponseEntity<UsuarioAdminResponse> crearAdministrador(
+            @Valid @RequestBody CrearTrabajadorRequest request) {
+
+        var admin = usuariosUseCase.crearAdministrador(
+                request.nombreCompleto(),
+                request.correo(),
+                request.passwordInicial()
+        );
+
+        return ResponseEntity
+                .status(HttpStatus.CREATED)
+                .body(UsuarioAdminResponse.from(admin));
+    }
+
+    @Operation(
         summary = "Activar cuenta de usuario",
         description = "Restaura el acceso de un usuario previamente desactivado."
     )

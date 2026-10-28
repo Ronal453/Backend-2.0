@@ -143,4 +143,47 @@ class AdminUsuarioControllerTest {
                     .andExpect(jsonPath("$.mensaje").value("El email ya está registrado: carlos.duplicado@plantopolis.com"));
         }
     }
+
+    @Nested
+    @DisplayName("POST /api/admin/usuarios/administradores")
+    class CrearAdministradorEndpointTests {
+
+        @Test
+        @DisplayName("201 CREATED — Crea cuenta de administrador con datos válidos")
+        void crearAdministrador_datosValidos_retorna201() throws Exception {
+            var request = new CrearTrabajadorRequest(
+                    "Laura Morales",
+                    "laura.admin@plantopolis.com",
+                    "AdminPass2026$"
+            );
+
+            var usuarioCreado = Usuario.builder()
+                    .idUsuario(20L)
+                    .nombreCompleto("Laura Morales")
+                    .correo("laura.admin@plantopolis.com")
+                    .idRol(1L)
+                    .rolNombre("ADMINISTRADOR")
+                    .activo(true)
+                    .fechaRegistro(LocalDateTime.now())
+                    .build();
+
+            when(usuariosUseCase.crearAdministrador(
+                    eq("Laura Morales"),
+                    eq("laura.admin@plantopolis.com"),
+                    eq("AdminPass2026$")
+            )).thenReturn(usuarioCreado);
+
+            mockMvc.perform(post("/api/admin/usuarios/administradores")
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(objectMapper.writeValueAsString(request)))
+                    .andExpect(status().isCreated())
+                    .andExpect(jsonPath("$.idUsuario").value(20))
+                    .andExpect(jsonPath("$.nombreCompleto").value("Laura Morales"))
+                    .andExpect(jsonPath("$.correo").value("laura.admin@plantopolis.com"))
+                    .andExpect(jsonPath("$.rol").value("ADMINISTRADOR"))
+                    .andExpect(jsonPath("$.activo").value(true));
+
+            verify(usuariosUseCase).crearAdministrador("Laura Morales", "laura.admin@plantopolis.com", "AdminPass2026$");
+        }
+    }
 }

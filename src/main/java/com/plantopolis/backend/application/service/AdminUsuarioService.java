@@ -27,6 +27,7 @@ public class AdminUsuarioService implements GestionarUsuariosAdminUseCase {
     private static final SecureRandom RANDOM = new SecureRandom();
 
     // IDs de rol según los INSERT de Rol en plantopolis_schema.sql
+    private static final Long ROL_ADMINISTRADOR = 1L;
     private static final Long ROL_TRABAJADOR = 2L;
 
     private static final ZoneId ZONA_BOGOTA = ZoneId.of("America/Bogota");
@@ -81,6 +82,41 @@ public class AdminUsuarioService implements GestionarUsuariosAdminUseCase {
                 .correo(correo)
                 .contrasenaHash(passwordEncoder.encode(passwordInicial))
                 .idRol(idRolTrabajador)
+                .activo(true)
+                .fechaRegistro(LocalDateTime.now(ZONA_BOGOTA))
+                .fechaActualizacion(LocalDateTime.now(ZONA_BOGOTA))
+                .build();
+
+        return usuarioRepository.guardar(nuevo);
+    }
+
+    /**
+     * Crea una nueva cuenta con rol ADMINISTRADOR.
+     * Asigna estado activo de forma inmediata y hashea la contraseña provista con BCrypt.
+     *
+     * @param nombreCompleto  Nombre del administrador
+     * @param correo          Correo único institucional
+     * @param passwordInicial Contraseña inicial en texto plano
+     * @return El usuario administrador creado y persistido
+     */
+    @Override
+    @Transactional
+    public Usuario crearAdministrador(String nombreCompleto, String correo, String passwordInicial) {
+
+        if (usuarioRepository.existePorEmail(correo)) {
+            throw new RuntimeException("El email ya está registrado: " + correo);
+        }
+
+        Long idRolAdmin = usuarioRepository.obtenerIdRol("ADMINISTRADOR");
+        if (idRolAdmin == null || idRolAdmin == 0L) {
+            idRolAdmin = ROL_ADMINISTRADOR;
+        }
+
+        Usuario nuevo = Usuario.builder()
+                .nombreCompleto(nombreCompleto)
+                .correo(correo)
+                .contrasenaHash(passwordEncoder.encode(passwordInicial))
+                .idRol(idRolAdmin)
                 .activo(true)
                 .fechaRegistro(LocalDateTime.now(ZONA_BOGOTA))
                 .fechaActualizacion(LocalDateTime.now(ZONA_BOGOTA))

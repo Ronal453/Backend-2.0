@@ -89,4 +89,40 @@ class AdminUsuarioServiceTest {
             assertThat(resultado.getFechaActualizacion()).isNotNull();
         }
     }
+
+    @Nested
+    @DisplayName("crearAdministrador()")
+    class CrearAdministradorTests {
+
+        @Test
+        @DisplayName("Debería crear el administrador con rol ADMINISTRADOR (id=1) y activo=true")
+        void crearAdministrador_datosValidos_creaConRolAdmin() {
+            when(usuarioRepository.existePorEmail("admin@plantopolis.com")).thenReturn(false);
+            when(passwordEncoder.encode("AdminPass2026$")).thenReturn("$2a$hashed_admin");
+            when(usuarioRepository.guardar(any(Usuario.class)))
+                    .thenAnswer(i -> i.getArgument(0));
+
+            Usuario resultado = sut.crearAdministrador(
+                    "Laura Morales", "admin@plantopolis.com", "AdminPass2026$");
+
+            assertThat(resultado.getIdRol()).isEqualTo(1L);
+            assertThat(resultado.getActivo()).isTrue();
+            assertThat(resultado.getNombreCompleto()).isEqualTo("Laura Morales");
+            assertThat(resultado.getCorreo()).isEqualTo("admin@plantopolis.com");
+            assertThat(resultado.getContrasenaHash()).isEqualTo("$2a$hashed_admin");
+        }
+
+        @Test
+        @DisplayName("Debería lanzar excepción cuando el correo del admin ya está registrado")
+        void crearAdministrador_correoDuplicado_lanzaExcepcion() {
+            when(usuarioRepository.existePorEmail("admin_dup@plantopolis.com")).thenReturn(true);
+
+            assertThatThrownBy(() ->
+                    sut.crearAdministrador("Laura", "admin_dup@plantopolis.com", "pass123"))
+                    .isInstanceOf(RuntimeException.class)
+                    .hasMessageContaining("ya está registrado");
+
+            verify(usuarioRepository, never()).guardar(any());
+        }
+    }
 }

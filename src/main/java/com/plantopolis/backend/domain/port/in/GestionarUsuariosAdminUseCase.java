@@ -25,4 +25,16 @@ public interface GestionarUsuariosAdminUseCase {
      * @throws RuntimeException si el correo ya está registrado
      */
     Usuario crearTrabajador(String nombreCompleto, String correo, String passwordInicial);
+
+    /**
+     * Crea una nueva cuenta con rol ADMINISTRADOR. Solo puede ser invocado
+     * por un usuario con rol ADMINISTRADOR (se valida en el controller
+     * vía @PreAuthorize).
+     *
+     * @param nombreCompleto  nombre completo del administrador
+     * @param correo          correo único, será su usuario de login
+     * @param passwordInicial contraseña inicial en texto plano (se hashea antes de guardar)
+     * @throws RuntimeException si el correo ya está registrado
+     */
+    Usuario crearAdministrador(String nombreCompleto, String correo, String passwordInicial);
 }
