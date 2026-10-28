@@ -42,7 +42,7 @@ class AdminProductoServiceTest {
     @InjectMocks
     private AdminProductoService sut;
 
-    // ── Fixtures ─────────────────────────────────────────────────────────────
+    // â”€â”€ Fixtures â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
     private Producto productoBase(boolean activo) {
         return Producto.builder()
@@ -52,7 +52,6 @@ class AdminProductoServiceTest {
                 .precio(new BigDecimal("25000"))
                 .stock(20)
                 .idCategoria(1L)
-                .idTipo(1L)
                 .activo(activo)
                 .build();
     }
@@ -61,9 +60,9 @@ class AdminProductoServiceTest {
         return PageRequest.of(0, 20);
     }
 
-    // ═══════════════════════════════════════════════════════════════════════
+    // ═══════════════════════════════════════════════════════════════════════
     // LISTAR TODOS (ADMIN)
-    // ═══════════════════════════════════════════════════════════════════════
+    // ═══════════════════════════════════════════════════════════════════════
 
     @Nested
     @DisplayName("listarTodos()")
@@ -76,13 +75,13 @@ class AdminProductoServiceTest {
             Producto inactivo = Producto.builder()
                     .idProducto(2L).nombreProducto("Pothos Dorado")
                     .precio(new BigDecimal("25000")).stock(20)
-                    .idCategoria(1L).idTipo(1L).activo(false).build();
+                    .idCategoria(1L).activo(false).build();
             List<Producto> todos = List.of(productoBase(true), inactivo);
-            when(productoRepository.buscarTodosAdmin(any(), any(), any(), any(), any()))
+            when(productoRepository.buscarTodosAdmin(any(), any(), any(), any()))
                     .thenReturn(new PageImpl<>(todos, pageable(), 2));
 
             // Act
-            Page<Producto> resultado = sut.listarTodos(null, null, null, null, pageable());
+            Page<Producto> resultado = sut.listarTodos(null, null, null, pageable());
 
             // Assert
             assertThat(resultado.getContent()).hasSize(2);
@@ -95,36 +94,36 @@ class AdminProductoServiceTest {
         @DisplayName("Debería filtrar por nombre cuando se proporciona")
         void listarTodos_conFiltroNombre_delegaAlRepositorio() {
             // Arrange
-            when(productoRepository.buscarTodosAdmin(eq("Ficus"), any(), any(), any(), any()))
+            when(productoRepository.buscarTodosAdmin(eq("Ficus"), any(), any(), any()))
                     .thenReturn(new PageImpl<>(List.of()));
 
             // Act
-            sut.listarTodos("Ficus", null, null, null, pageable());
+            sut.listarTodos("Ficus", null, null, pageable());
 
             // Assert
-            verify(productoRepository).buscarTodosAdmin("Ficus", null, null, null, pageable());
+            verify(productoRepository).buscarTodosAdmin("Ficus", null, null, pageable());
         }
 
         @Test
         @DisplayName("Debería delegar a buscarTodosAdmin (no al catálogo público)")
         void listarTodos_usaMetodoAdmin_noPublico() {
             // Arrange
-            when(productoRepository.buscarTodosAdmin(any(), any(), any(), any(), any()))
+            when(productoRepository.buscarTodosAdmin(any(), any(), any(), any()))
                     .thenReturn(new PageImpl<>(List.of()));
 
             // Act
-            sut.listarTodos(null, null, null, null, pageable());
+            sut.listarTodos(null, null, null, pageable());
 
             // Assert
-            verify(productoRepository).buscarTodosAdmin(any(), any(), any(), any(), any());
+            verify(productoRepository).buscarTodosAdmin(any(), any(), any(), any());
             verify(productoRepository, never()).buscarConFiltros(
-                    any(), any(), any(), any(), any(), any());
+                    any(), any(), any(), any(), any());
         }
     }
 
-    // ═══════════════════════════════════════════════════════════════════════
+    // ═══════════════════════════════════════════════════════════════════════
     // CREAR
-    // ═══════════════════════════════════════════════════════════════════════
+    // ═══════════════════════════════════════════════════════════════════════
 
     @Nested
     @DisplayName("crear()")
@@ -192,16 +191,16 @@ class AdminProductoServiceTest {
         }
     }
 
-    // ═══════════════════════════════════════════════════════════════════════
+    // ═══════════════════════════════════════════════════════════════════════
     // ACTUALIZAR
-    // ═══════════════════════════════════════════════════════════════════════
+    // ═══════════════════════════════════════════════════════════════════════
 
     @Nested
     @DisplayName("actualizar()")
     class ActualizarTests {
 
         @Test
-        @DisplayName("Debería actualizar nombre y precio cuando se envían")
+        @DisplayName("Debería actualizar nombre y precio cuando se envÃ­an")
         void actualizar_nombreYPrecio_losActualiza() {
             // Arrange
             Producto existente = productoBase(true);
@@ -242,7 +241,7 @@ class AdminProductoServiceTest {
         }
 
         @Test
-        @DisplayName("Debería lanzar excepción cuando el producto no existe")
+        @DisplayName("Debería lanzar excepciÃ³n cuando el producto no existe")
         void actualizar_productoInexistente_lanzaExcepcion() {
             // Arrange
             when(productoRepository.buscarPorId(99L)).thenReturn(Optional.empty());
@@ -269,33 +268,32 @@ class AdminProductoServiceTest {
             // Act
             Producto resultado = sut.actualizar(1L, datos);
 
-            // Assert — el activo no cambia al actualizar stock
+            // Assert â€” el activo no cambia al actualizar stock
             assertThat(resultado.getActivo()).isFalse();
         }
 
         @Test
-        @DisplayName("Debería actualizar idCategoria e idTipo cuando se envían")
-        void actualizar_categoriaYTipo_losActualiza() {
+        @DisplayName("Debería actualizar idCategoria cuando se envía")
+        void actualizar_categoria_laActualiza() {
             // Arrange
             Producto existente = productoBase(true);
             when(productoRepository.buscarPorId(1L)).thenReturn(Optional.of(existente));
             when(productoRepository.guardar(any())).thenAnswer(i -> i.getArgument(0));
 
             Producto datos = Producto.builder()
-                    .idCategoria(3L).idTipo(2L).build();
+                    .idCategoria(3L).build();
 
             // Act
             Producto resultado = sut.actualizar(1L, datos);
 
             // Assert
             assertThat(resultado.getIdCategoria()).isEqualTo(3L);
-            assertThat(resultado.getIdTipo()).isEqualTo(2L);
         }
     }
 
-    // ═══════════════════════════════════════════════════════════════════════
+    // ═══════════════════════════════════════════════════════════════════════
     // ACTIVAR
-    // ═══════════════════════════════════════════════════════════════════════
+    // ═══════════════════════════════════════════════════════════════════════
 
     @Nested
     @DisplayName("activar()")
@@ -334,7 +332,7 @@ class AdminProductoServiceTest {
         }
 
         @Test
-        @DisplayName("Debería lanzar excepción cuando el producto no existe")
+        @DisplayName("Debería lanzar excepciÃ³n cuando el producto no existe")
         void activar_productoInexistente_lanzaExcepcion() {
             // Arrange
             when(productoRepository.buscarPorId(99L)).thenReturn(Optional.empty());
@@ -346,9 +344,9 @@ class AdminProductoServiceTest {
         }
     }
 
-    // ═══════════════════════════════════════════════════════════════════════
+    // ═══════════════════════════════════════════════════════════════════════
     // DESACTIVAR
-    // ═══════════════════════════════════════════════════════════════════════
+    // ═══════════════════════════════════════════════════════════════════════
 
     @Nested
     @DisplayName("desactivar()")
@@ -387,7 +385,7 @@ class AdminProductoServiceTest {
         }
 
         @Test
-        @DisplayName("Debería lanzar excepción cuando el producto no existe")
+        @DisplayName("Debería lanzar excepciÃ³n cuando el producto no existe")
         void desactivar_productoInexistente_lanzaExcepcion() {
             // Arrange
             when(productoRepository.buscarPorId(5L)).thenReturn(Optional.empty());
@@ -401,7 +399,7 @@ class AdminProductoServiceTest {
         }
 
         @Test
-        @DisplayName("Debería preservar todos los demás datos del producto al desactivar")
+        @DisplayName("Debería preservar todos los demÃ¡s datos del producto al desactivar")
         void desactivar_preservaOtrosDatos() {
             // Arrange
             Producto original = productoBase(true);

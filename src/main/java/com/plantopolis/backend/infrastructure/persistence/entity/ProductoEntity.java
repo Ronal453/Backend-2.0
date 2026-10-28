@@ -23,9 +23,6 @@ public class ProductoEntity {
     @Column(name = "ID_CATEGORIA", nullable = false)
     private Long idCategoria;
 
-    @Column(name = "ID_TIPO", nullable = false)
-    private Long idTipo;
-
     @Column(name = "NOMBRE_PRODUCTO", nullable = false, length = 150)
     private String nombreProducto;
 
@@ -75,8 +72,4 @@ public class ProductoEntity {
     @ManyToOne(fetch = FetchType.EAGER)
     @JoinColumn(name = "ID_CATEGORIA", insertable = false, updatable = false)
     private CategoriaEntity categoria;
-
-    @ManyToOne(fetch = FetchType.EAGER)
-    @JoinColumn(name = "ID_TIPO", insertable = false, updatable = false)
-    private TipoProductoEntity tipo;
 }

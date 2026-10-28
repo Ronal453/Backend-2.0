@@ -25,14 +25,18 @@ public interface ProductoJpaRepository extends JpaRepository<ProductoEntity, Lon
           AND (CAST(:nombre AS string) IS NULL OR 
                LOWER(p.nombreProducto) LIKE LOWER(CONCAT('%', CAST(:nombre AS string), '%')))
           AND (:idCategoria IS NULL OR p.idCategoria = :idCategoria)
-          AND (:idTipo IS NULL OR p.idTipo = :idTipo)
+          AND (CAST(:luz AS string) IS NULL OR 
+               LOWER(p.luz) LIKE LOWER(CONCAT('%', CAST(:luz AS string), '%')))
+          AND (CAST(:riego AS string) IS NULL OR 
+               LOWER(p.riego) LIKE LOWER(CONCAT('%', CAST(:riego AS string), '%')))
           AND (:precioMin IS NULL OR p.precio >= :precioMin)
           AND (:precioMax IS NULL OR p.precio <= :precioMax)
     """)
     Page<ProductoEntity> buscarConFiltros(
             @Param("nombre") String nombre,
             @Param("idCategoria") Long idCategoria,
-            @Param("idTipo") Long idTipo,
+            @Param("luz") String luz,
+            @Param("riego") String riego,
             @Param("precioMin") BigDecimal precioMin,
             @Param("precioMax") BigDecimal precioMax,
             Pageable pageable
@@ -46,13 +50,11 @@ public interface ProductoJpaRepository extends JpaRepository<ProductoEntity, Lon
         WHERE (CAST(:nombre AS string) IS NULL OR 
                LOWER(p.nombreProducto) LIKE LOWER(CONCAT('%', CAST(:nombre AS string), '%')))
           AND (:idCategoria IS NULL OR p.idCategoria = :idCategoria)
-          AND (:idTipo IS NULL OR p.idTipo = :idTipo)
           AND (:activo IS NULL OR p.activo = :activo)
     """)
     Page<ProductoEntity> buscarTodosAdmin(
             @Param("nombre") String nombre,
             @Param("idCategoria") Long idCategoria,
-            @Param("idTipo") Long idTipo,
             @Param("activo") Boolean activo,
             Pageable pageable
     );

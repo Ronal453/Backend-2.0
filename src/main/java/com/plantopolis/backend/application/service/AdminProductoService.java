@@ -11,6 +11,10 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 
+/**
+ * Servicio de aplicación para la administración de productos e inventario botánico.
+ * Implementa GestionarProductosAdminUseCase.
+ */
 @Service
 @RequiredArgsConstructor
 public class AdminProductoService implements GestionarProductosAdminUseCase {
@@ -19,8 +23,8 @@ public class AdminProductoService implements GestionarProductosAdminUseCase {
 
     @Override
     public Page<Producto> listarTodos(String nombre, Long idCategoria,
-                                      Long idTipo, Boolean activo, Pageable pageable) {
-        return productoRepository.buscarTodosAdmin(nombre, idCategoria, idTipo, activo, pageable);
+                                      Boolean activo, Pageable pageable) {
+        return productoRepository.buscarTodosAdmin(nombre, idCategoria, activo, pageable);
     }
 
     @Override
@@ -43,7 +47,6 @@ public class AdminProductoService implements GestionarProductosAdminUseCase {
         if (datos.getStock() != null) existente.setStock(datos.getStock());
         if (datos.getImagenUrl() != null) existente.setImagenUrl(datos.getImagenUrl());
         if (datos.getIdCategoria() != null) existente.setIdCategoria(datos.getIdCategoria());
-        if (datos.getIdTipo() != null) existente.setIdTipo(datos.getIdTipo());
         if (datos.getCuidados() != null) existente.setCuidados(datos.getCuidados());
         if (datos.getLuz() != null) existente.setLuz(datos.getLuz());
         if (datos.getRiego() != null) existente.setRiego(datos.getRiego());

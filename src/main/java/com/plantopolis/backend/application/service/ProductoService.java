@@ -2,7 +2,6 @@ package com.plantopolis.backend.application.service;
 
 import com.plantopolis.backend.domain.model.Categoria;
 import com.plantopolis.backend.domain.model.Producto;
-import com.plantopolis.backend.domain.model.TipoProducto;
 import com.plantopolis.backend.domain.port.in.ObtenerProductosUseCase;
 import com.plantopolis.backend.domain.port.out.ProductoRepositoryPort;
 import lombok.RequiredArgsConstructor;
@@ -13,6 +12,10 @@ import org.springframework.stereotype.Service;
 import java.math.BigDecimal;
 import java.util.List;
 
+/**
+ * Servicio de aplicación para la consulta y catálogo de productos públicos.
+ * Implementa el caso de uso ObtenerProductosUseCase.
+ */
 @Service
 @RequiredArgsConstructor
 public class ProductoService implements ObtenerProductosUseCase {
@@ -21,11 +24,21 @@ public class ProductoService implements ObtenerProductosUseCase {
 
     @Override
     public Page<Producto> listarProductos(
-            String nombre, Long idCategoria, Long idTipo,
+            String nombre, Long idCategoria,
             BigDecimal precioMin, BigDecimal precioMax, Pageable pageable) {
 
         return productoRepository.buscarConFiltros(
-                nombre, idCategoria, idTipo, precioMin, precioMax, pageable);
+                nombre, idCategoria, precioMin, precioMax, pageable);
+    }
+
+    @Override
+    public Page<Producto> listarProductos(
+            String nombre, Long idCategoria,
+            String luz, String riego,
+            BigDecimal precioMin, BigDecimal precioMax, Pageable pageable) {
+
+        return productoRepository.buscarConFiltros(
+                nombre, idCategoria, luz, riego, precioMin, precioMax, pageable);
     }
 
     @Override
@@ -38,10 +51,5 @@ public class ProductoService implements ObtenerProductosUseCase {
     @Override
     public List<Categoria> listarCategorias() {
         return productoRepository.listarCategorias();
-    }
-
-    @Override
-    public List<TipoProducto> listarTipos() {       // ← nuevo
-        return productoRepository.listarTipos();
     }
 }

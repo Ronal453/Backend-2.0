@@ -3,6 +3,9 @@ package com.plantopolis.backend.infrastructure.adapter.in.web.dto;
 import com.plantopolis.backend.domain.model.Producto;
 import java.math.BigDecimal;
 
+/**
+ * DTO de respuesta para la información de un producto.
+ */
 public record ProductoResponse(
         Long      idProducto,
         String    nombreProducto,
@@ -17,10 +20,8 @@ public record ProductoResponse(
         String    riego,
         String    tamanioEstimado,
         String    categoria,
-        String    tipo,
         Boolean   activo,
-        Long      idCategoria,
-        Long      idTipo
+        Long      idCategoria
 ) {
     public static ProductoResponse from(Producto p) {
         boolean critico = p.getStock() != null
@@ -31,8 +32,8 @@ public record ProductoResponse(
                 p.getIdProducto(), p.getNombreProducto(), p.getDescripcion(),
                 p.getPrecio(), p.getStock(), p.getStockMinimoAlerta(), critico,
                 p.getImagenUrl(), p.getCuidados(), p.getLuz(), p.getRiego(),
-                p.getTamanioEstimado(), p.getNombreCategoria(), p.getNombreTipo(),
-                p.getActivo(), p.getIdCategoria(), p.getIdTipo()
+                p.getTamanioEstimado(), p.getNombreCategoria(),
+                p.getActivo(), p.getIdCategoria()
         );
     }
 }

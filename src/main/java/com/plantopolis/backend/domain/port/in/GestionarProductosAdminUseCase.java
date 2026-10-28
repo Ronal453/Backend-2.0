@@ -6,10 +6,13 @@ import org.springframework.data.domain.Pageable;
 
 import java.util.List;
 
+/**
+ * Caso de uso administrativo para la gestión del inventario botánico y productos.
+ */
 public interface GestionarProductosAdminUseCase {
 
     Page<Producto> listarTodos(String nombre, Long idCategoria,
-                               Long idTipo, Boolean activo, Pageable pageable);
+                               Boolean activo, Pageable pageable);
 
     Producto crear(Producto producto);
 

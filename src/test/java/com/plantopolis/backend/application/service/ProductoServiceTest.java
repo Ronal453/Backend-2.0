@@ -2,7 +2,6 @@ package com.plantopolis.backend.application.service;
 
 import com.plantopolis.backend.domain.model.Categoria;
 import com.plantopolis.backend.domain.model.Producto;
-import com.plantopolis.backend.domain.model.TipoProducto;
 import com.plantopolis.backend.domain.port.out.ProductoRepositoryPort;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -31,7 +30,6 @@ import static org.mockito.Mockito.*;
  *   - listarProductos(): con y sin filtros
  *   - obtenerDetalle(): existente, no encontrado
  *   - listarCategorias(): lista vacía y con datos
- *   - listarTipos(): delegación al repositorio
  */
 @ExtendWith(MockitoExtension.class)
 @DisplayName("ProductoService")
@@ -52,7 +50,6 @@ class ProductoServiceTest {
                 .stock(10)
                 .activo(true)
                 .nombreCategoria("Plantas de Interior")
-                .nombreTipo("Planta")
                 .build();
     }
 
@@ -79,12 +76,12 @@ class ProductoServiceTest {
             Page<Producto> pagina = new PageImpl<>(lista, pageable(), 2);
 
             when(productoRepository.buscarConFiltros(
-                    isNull(), isNull(), isNull(), isNull(), isNull(), any(Pageable.class)))
+                    isNull(), isNull(), isNull(), isNull(), any(Pageable.class)))
                     .thenReturn(pagina);
 
             // Act
             Page<Producto> resultado = sut.listarProductos(
-                    null, null, null, null, null, pageable());
+                    null, null, null, null, pageable());
 
             // Assert
             assertThat(resultado.getContent()).hasSize(2);
@@ -99,12 +96,12 @@ class ProductoServiceTest {
                     List.of(producto(1L, "Pothos Dorado", new BigDecimal("25000"))));
 
             when(productoRepository.buscarConFiltros(
-                    eq("Pothos"), isNull(), isNull(), isNull(), isNull(), any()))
+                    eq("Pothos"), isNull(), isNull(), isNull(), any()))
                     .thenReturn(pagina);
 
             // Act
             Page<Producto> resultado = sut.listarProductos(
-                    "Pothos", null, null, null, null, pageable());
+                    "Pothos", null, null, null, pageable());
 
             // Assert
             assertThat(resultado.getContent()).hasSize(1);
@@ -121,17 +118,17 @@ class ProductoServiceTest {
             Page<Producto> pagina = new PageImpl<>(List.of());
 
             when(productoRepository.buscarConFiltros(
-                    isNull(), isNull(), isNull(), eq(min), eq(max), any()))
+                    isNull(), isNull(), eq(min), eq(max), any()))
                     .thenReturn(pagina);
 
             // Act
             Page<Producto> resultado = sut.listarProductos(
-                    null, null, null, min, max, pageable());
+                    null, null, min, max, pageable());
 
             // Assert
             assertThat(resultado).isNotNull();
             verify(productoRepository).buscarConFiltros(
-                    null, null, null, min, max, pageable());
+                    null, null, min, max, pageable());
         }
 
         @Test
@@ -139,12 +136,12 @@ class ProductoServiceTest {
         void listarProductos_sinResultados_retornaPaginaVacia() {
             // Arrange
             when(productoRepository.buscarConFiltros(
-                    any(), any(), any(), any(), any(), any()))
+                    any(), any(), any(), any(), any()))
                     .thenReturn(new PageImpl<>(List.of()));
 
             // Act
             Page<Producto> resultado = sut.listarProductos(
-                    "inexistente", null, null, null, null, pageable());
+                    "inexistente", null, null, null, pageable());
 
             // Assert
             assertThat(resultado.getContent()).isEmpty();
@@ -152,18 +149,18 @@ class ProductoServiceTest {
         }
 
         @Test
-        @DisplayName("Debería filtrar combinando categoría y tipo")
-        void listarProductos_conFiltrosCategoriaYTipo_delegaCorrectamente() {
+        @DisplayName("Debería filtrar por categoría delegando correctamente")
+        void listarProductos_conFiltroCategoria_delegaCorrectamente() {
             // Arrange
             when(productoRepository.buscarConFiltros(
-                    isNull(), eq(1L), eq(2L), isNull(), isNull(), any()))
+                    isNull(), eq(1L), isNull(), isNull(), any()))
                     .thenReturn(new PageImpl<>(List.of()));
 
             // Act
-            sut.listarProductos(null, 1L, 2L, null, null, pageable());
+            sut.listarProductos(null, 1L, null, null, pageable());
 
             // Assert
-            verify(productoRepository).buscarConFiltros(null, 1L, 2L, null, null, pageable());
+            verify(productoRepository).buscarConFiltros(null, 1L, null, null, pageable());
         }
     }
 
@@ -286,49 +283,6 @@ class ProductoServiceTest {
 
             // Assert
             verify(productoRepository, times(1)).listarCategorias();
-        }
-    }
-
-    // ═══════════════════════════════════════════════════════════════════════
-    // LISTAR TIPOS
-    // ═══════════════════════════════════════════════════════════════════════
-
-    @Nested
-    @DisplayName("listarTipos()")
-    class ListarTiposTests {
-
-        @Test
-        @DisplayName("Debería retornar todos los tipos disponibles")
-        void listarTipos_retornaLista() {
-            // Arrange
-            List<TipoProducto> tipos = List.of(
-                    TipoProducto.builder().idTipo(1L).nombreTipo("Planta").build(),
-                    TipoProducto.builder().idTipo(2L).nombreTipo("Semilla").build(),
-                    TipoProducto.builder().idTipo(3L).nombreTipo("Accesorio").build(),
-                    TipoProducto.builder().idTipo(4L).nombreTipo("Sustrato").build()
-            );
-            when(productoRepository.listarTipos()).thenReturn(tipos);
-
-            // Act
-            List<TipoProducto> resultado = sut.listarTipos();
-
-            // Assert
-            assertThat(resultado).hasSize(4);
-            assertThat(resultado).extracting(TipoProducto::getNombreTipo)
-                    .containsExactlyInAnyOrder("Planta", "Semilla", "Accesorio", "Sustrato");
-        }
-
-        @Test
-        @DisplayName("Debería delegar al repositorio sin lógica adicional")
-        void listarTipos_delegaAlRepositorio() {
-            // Arrange
-            when(productoRepository.listarTipos()).thenReturn(List.of());
-
-            // Act
-            sut.listarTipos();
-
-            // Assert
-            verify(productoRepository, times(1)).listarTipos();
         }
     }
 }

@@ -11,12 +11,17 @@ import java.math.BigDecimal;
 @Component
 public class ProductoMapper {
 
+    /**
+     * Convierte una entidad JPA ProductoEntity a su modelo de dominio Producto.
+     *
+     * @param entity Entidad JPA obtenida de la base de datos
+     * @return Modelo de dominio Producto
+     */
     public Producto toDomain(ProductoEntity entity) {
         if (entity == null) return null;
         return Producto.builder()
                 .idProducto(entity.getIdProducto())
                 .idCategoria(entity.getIdCategoria())
-                .idTipo(entity.getIdTipo())
                 .nombreProducto(entity.getNombreProducto())
                 .descripcion(entity.getDescripcion())
                 .precio(entity.getPrecio())
@@ -33,17 +38,20 @@ public class ProductoMapper {
                 .activo(entity.getActivo())
                 .nombreCategoria(entity.getCategoria() != null
                         ? entity.getCategoria().getNombreCategoria() : null)
-                .nombreTipo(entity.getTipo() != null
-                        ? entity.getTipo().getNombreTipo() : null)
                 .build();
     }
 
+    /**
+     * Convierte un modelo de dominio Producto a su entidad JPA ProductoEntity.
+     *
+     * @param domain Modelo de dominio Producto
+     * @return Entidad JPA lista para persistencia
+     */
     public ProductoEntity toEntity(Producto domain) {
         if (domain == null) return null;
         return ProductoEntity.builder()
                 .idProducto(domain.getIdProducto())
                 .idCategoria(domain.getIdCategoria())
-                .idTipo(domain.getIdTipo())
                 .nombreProducto(domain.getNombreProducto())
                 .descripcion(domain.getDescripcion())
                 .precio(domain.getPrecio())

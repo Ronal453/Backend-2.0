@@ -26,9 +26,6 @@ public record ProductoAdminRequest(
         @NotNull(message = "La categoría es obligatoria")
         Long idCategoria,
 
-        @NotNull(message = "El tipo es obligatorio")
-        Long idTipo,
-
         String cuidados,
         String luz,
         String riego,

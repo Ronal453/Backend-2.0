@@ -25,8 +25,8 @@ import java.util.List;
 @RestController
 @RequestMapping("/api/admin/productos")
 @RequiredArgsConstructor
-@Tag(name = "Admin — Inventario",
-     description = "Gestión de inventario de productos. 🔒 Requiere rol ADMINISTRADOR.")
+@Tag(name = "Admin â€” Inventario",
+     description = "GestiÃ³n de inventario de productos. ðŸ”’ Requiere rol ADMINISTRADOR.")
 @SecurityRequirement(name = "Bearer Authentication")
 public class AdminProductoController {
 
@@ -37,7 +37,6 @@ public class AdminProductoController {
     public ResponseEntity<Page<ProductoResponse>> listar(
             @RequestParam(required = false) String nombre,
             @RequestParam(required = false) Long idCategoria,
-            @RequestParam(required = false) Long idTipo,
             @RequestParam(required = false) Boolean activo,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size,
@@ -45,7 +44,7 @@ public class AdminProductoController {
     ) {
         var pageable = PageRequest.of(page, size, Sort.by(sort).ascending());
         return ResponseEntity.ok(
-                adminProductoUseCase.listarTodos(nombre, idCategoria, idTipo, activo, pageable)
+                adminProductoUseCase.listarTodos(nombre, idCategoria, activo, pageable)
                         .map(ProductoResponse::from)
         );
     }
@@ -95,7 +94,6 @@ public class AdminProductoController {
                 .stock(req.stock())
                 .imagenUrl(req.imagenUrl())
                 .idCategoria(req.idCategoria())
-                .idTipo(req.idTipo())
                 .cuidados(req.cuidados())
                 .luz(req.luz())
                 .riego(req.riego())

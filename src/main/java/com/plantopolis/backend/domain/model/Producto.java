@@ -3,6 +3,10 @@ package com.plantopolis.backend.domain.model;
 import lombok.*;
 import java.math.BigDecimal;
 
+/**
+ * Modelo de dominio para un producto botánico o insumo en Plantopolis.
+ * Representa la entidad pura de negocio sin acoplamiento a frameworks de persistencia.
+ */
 @Data
 @Builder
 @NoArgsConstructor
@@ -10,7 +14,6 @@ import java.math.BigDecimal;
 public class Producto {
     private Long idProducto;
     private Long idCategoria;
-    private Long idTipo;
     private String nombreProducto;
     private String descripcion;
     private BigDecimal precio;
@@ -29,5 +32,4 @@ public class Producto {
     private Boolean activo;
     // Datos enriquecidos para la respuesta
     private String nombreCategoria;
-    private String nombreTipo;
 }
